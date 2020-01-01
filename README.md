@@ -1,1 +1,1 @@
-This is an IOT device for temperature monitor with wifi.
+This is an IOT device for temperature monitoring with wifi.
