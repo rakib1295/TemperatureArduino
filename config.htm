@@ -58,7 +58,7 @@
 			container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
 			// Create an <input> element, set its type and name attributes
 			var input = document.createElement("input");
-			input.type = "text";
+			input.type = "number";
 			input.id = "PhnNumber" + i;
 			input.placeholder = "01XXXXXXXXX";
 			container.appendChild(input);
@@ -72,13 +72,14 @@
 		var CriticalTemp = document.getElementById("CriticalTemp").value;
 		var HiCriticalHum = document.getElementById("HiCriticalHum").value;
 		var LowCriticalHum = document.getElementById("LowCriticalHum").value;
-		var PhnNumbers = document.getElementById("container").value;
+		//var PhnNumbers = document.getElementById("container").value;
 	  
 		var number = document.getElementById("PhnNumberCount").value;
-		var PhnNumbers = document.getElementById("container");
+		//var PhnNumbers = document.getElementById("container");
 		var phndata = [];
 		for (i=0;i<number;i++)
 		{
+			console.log("here"+ document.getElementById("PhnNumber" + i).value);
 			if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
 			{
 				phndata[i] = document.getElementById("PhnNumber" + i).value;

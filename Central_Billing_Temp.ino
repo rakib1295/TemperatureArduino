@@ -1,27 +1,27 @@
 #include <FS.h>    
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-
 //needed for library
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
-#include <WiFiManager.h> 
+#include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>
-#include <ESP8266mDNS.h>
 
-//https://github.com/tzapu/WiFiManager
+
 
 //for LED status
 #include <Ticker.h>
 Ticker ticker;
+ESP8266WebServer server(80);
 
 struct ConfigData
 {
-  String Title;
-  String Name;
+  const char* Title;
+  const char* Name;
   double CriticalTemp;
   double HiCriticalHum;
   double LowCriticalHum;
-  int PhnNumbers[10];
+  int PhnNumberCount;
+  String PhnNumbers[10];
 } _configdata;
 
 char webpage[] PROGMEM = R"rawliteral(
@@ -85,7 +85,7 @@ char webpage[] PROGMEM = R"rawliteral(
       container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
       // Create an <input> element, set its type and name attributes
       var input = document.createElement("input");
-      input.type = "text";
+      input.type = "number";
       input.id = "PhnNumber" + i;
       input.placeholder = "01XXXXXXXXX";
       container.appendChild(input);
@@ -101,21 +101,20 @@ char webpage[] PROGMEM = R"rawliteral(
     var CriticalTemp = document.getElementById("CriticalTemp").value;
     var HiCriticalHum = document.getElementById("HiCriticalHum").value;
     var LowCriticalHum = document.getElementById("LowCriticalHum").value;
-    var PhnNumbers = document.getElementById("container").value;
+    //var PhnNumbers = document.getElementById("container").value;
     
-    var number = document.getElementById("PhnNumberCount").value;
-    var PhnNumbers = document.getElementById("container");
+    var PhnNumberCount = document.getElementById("PhnNumberCount").value;
+    //var PhnNumbers = document.getElementById("container");
     var phndata = [];
-    for (i=0;i<number;i++)
+    for (i=0; i<PhnNumberCount; i++)
     {
       if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
       {
         phndata[i] = document.getElementById("PhnNumber" + i).value;
       }
-    }
-      
+    }      
     
-    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, PhnNumbers:phndata};
+    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, PhnNumberCount:phndata.length, PhnNumbers:phndata};
     console.log(data);
     var xhr = new XMLHttpRequest();
     var url = "/settings";
@@ -155,10 +154,46 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   ticker.attach(0.2, tick);
 }
 
+String showDataHTML(float Temperaturestat, float Humiditystat){
+  String ptr = "<!DOCTYPE html> <html>\n";
+  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+  ptr += "<title>Central Billing Sher-e-Bangla</title>\n";
+  ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+  ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
+  ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
+  ptr += "</style>\n";
+  ptr += "</head>\n";
+  ptr += "<body>\n";
+  ptr += "<div id=\"webpage\">\n";
+  ptr += "<h1>Central Billing Sher-e-Bangla</h1>\n";
+
+  ptr += "<p>Temperature: ";
+  ptr += Temperaturestat;
+  ptr += "°C</p>"; 
+  ptr += "<p>Humidity: ";
+  ptr += Humiditystat;
+  ptr += "%</p>";
+
+  ptr += "</div>\n";
+  ptr += "</body>\n";
+  ptr += "</html>\n";
+  return ptr;
+}
+
+//void getData() {
+//
+//  Temperature = dht.readTemperature(); // Gets the values of the temperature
+//  Humidity = dht.readHumidity(); // Gets the values of the humidity
+//
+//  Serial.println("Temperature data.. ");
+//  Serial.println(Temperature);
+//  server.send(200, "text/html", showDataHTML(Temperature, Humidity));
+//}
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  
+  SPIFFS.begin();
   //set led pin as output
   pinMode(BUILTIN_LED, OUTPUT);
   // start ticker with 0.5 because we start in AP mode and try to connect
@@ -200,38 +235,49 @@ void setup() {
   //////////////////////////////////////////////////////////end of WIFI part
 
   server.on("/config",[](){server.send_P(200,"text/html", webpage);});
-  //server.on("/settings", HTTP_POST, WriteToFS);
-  server.on("/", getData);
+  server.on("/settings", HTTP_POST, WriteToFS);
+  //server.on("/", getData);
   server.onNotFound(handle_NotFound);
 
+  server.begin();
+  Serial.println("Server started");
 
 }
 
-//void WriteToFS()
-//{
-//  String data = server.arg("plain");
-//  DynamicJsonBuffer jBuffer;
-//  JsonObject& jObject = jBuffer.parseObject(data);
-//
-//  Serial.println("Write Data to config.json file ... \n");
-//  File configFile = SPIFFS.open("/config.json", "w");
-//  if(!configFile){
-//    Serial.println("- failed to open file for writing");
-//    return;
-//  }
-//  jObject.printTo(configFile);  
-//  configFile.close();
-//  
-//  server.send(200, "application/json", "{\"status\" : \"ok\"}");
-//  delay(500);
-//  
-//}
+void loop(){
+  // put your main code here, to run repeatedly:
+  server.handleClient();
+}
+
+void handle_NotFound() {
+  server.send(404, "text/plain", "Not found");
+}
+
+void WriteToFS(){
+  String data = server.arg("plain");
+  DynamicJsonBuffer jBuffer;
+  JsonObject& jObject = jBuffer.parseObject(data);
+
+  Serial.println("Write Data to config.json file ... \n");
+  File configFile = SPIFFS.open("/config.json", "w");
+  if(!configFile){
+    Serial.println("- failed to open file for writing");
+    return;
+  }
+  jObject.printTo(configFile);  
+  Serial.println("config file saved: " + configFile);
+  configFile.close();
+  
+  server.send(200, "application/json", "{\"status\" : \"ok\"}");
+  delay(1000);
+
+  ReadFromFS();
+}
 
 void ReadFromFS()
 {
   if(SPIFFS.exists("/config.json"))
   {
-
     File configFile = SPIFFS.open("/config.json", "r");
     if(configFile)
     {
@@ -247,58 +293,31 @@ void ReadFromFS()
       {
         _configdata.Title = jObject["Title"];
         _configdata.Name = jObject["Name"];
+        _configdata.CriticalTemp = jObject["CriticalTemp"];
+        _configdata.HiCriticalHum = jObject["HiCriticalHum"];
+        _configdata.LowCriticalHum = jObject["LowCriticalHum"];
+        _configdata.PhnNumberCount = jObject["PhnNumberCount"];
+        //strcpy(_configdata.PhnNumbers, jObject["PhnNumbers"]);
+
+        const char* ch;
+        for(int i=0; i<_configdata.PhnNumberCount; i++)
+        {
+          ch = jObject["PhnNumbers"][i]; 
+          _configdata.PhnNumbers[i] = (String)ch;
+          Serial.println(_configdata.PhnNumbers[i]);
+      
+        }
         
-        Serial.print("\nConfig File data: ");
+        Serial.println("Config File data: ");
         Serial.println(_configdata.Title);
         Serial.println(_configdata.Name);
+        Serial.println(_configdata.CriticalTemp);
+        Serial.println(_configdata.HiCriticalHum);
+        Serial.println(_configdata.LowCriticalHum);
+        Serial.println(_configdata.PhnNumberCount);
+        
+        delay(1000);
       }
     }
-}
-
-void getData() {
-
-  Temperature = dht.readTemperature(); // Gets the values of the temperature
-  Humidity = dht.readHumidity(); // Gets the values of the humidity
-
-  Serial.println("Temperature data.. ");
-  Serial.println(Temperature);
-  server.send(200, "text/html", showDataHTML(Temperature, Humidity));
-}
-
-String showDataHTML(float Temperaturestat, float Humiditystat) 
-{
-  String ptr = "<!DOCTYPE html> <html>\n";
-  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr += "<title>Central Billing Sher-e-Bangla</title>\n";
-  ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
-  ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
-  ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
-  ptr += "</style>\n";
-  ptr += "</head>\n";
-  ptr += "<body>\n";
-  ptr += "<div id=\"webpage\">\n";
-  ptr += "<h1>Central Billing Sher-e-Bangla</h1>\n";
-
-  ptr += "<p>Temperature: ";
-  ptr += (int)Temperaturestat;
-  ptr += "°C</p>"; 
-  ptr += "<p>Humidity: ";
-  ptr += (int)Humiditystat;
-  ptr += "%</p>";
-
-  ptr += "</div>\n";
-  ptr += "</body>\n";
-  ptr += "</html>\n";
-  return ptr;
-}
-
-void handle_NotFound() 
-{
-  server.send(404, "text/plain", "Not found");
-}
-
-void loop() 
-{
-  // put your main code here, to run repeatedly:
-  server.handleClient();
+  }
 }
