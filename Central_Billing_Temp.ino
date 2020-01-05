@@ -5,7 +5,8 @@
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>
-
+#include "DHT.h"
+#define DHTTYPE DHT22
 
 
 //for LED status
@@ -13,14 +14,22 @@
 Ticker ticker;
 ESP8266WebServer server(80);
 
+uint8_t DHTPin = D5;
+               
+// Initialize DHT sensor.
+DHT dht(DHTPin, DHTTYPE);   
+
+float Temperature;
+float Humidity;
+
 struct ConfigData
 {
-  const char* Title;
-  const char* Name;
-  double CriticalTemp;
-  double HiCriticalHum;
-  double LowCriticalHum;
-  int PhnNumberCount;
+  String Title = "";
+  String Name = "";
+  float CriticalTemp = 0.0;
+  float HiCriticalHum = 0.0;
+  float LowCriticalHum = 0.0;
+  int PhnNumberCount = 0;
   String PhnNumbers[10];
 } _configdata;
 
@@ -31,7 +40,7 @@ char webpage[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <h1 align="middle">Config SMS Settings</h1>
-  <form align="middle">
+<form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
     <fieldset>
       <div>
         <label for="Title">Title of Portal: </label>      
@@ -47,16 +56,16 @@ char webpage[] PROGMEM = R"rawliteral(
       </div><br>
       <div>
         <label for="HiCriticalHum">Higher Critical Humidity: </label>
-        <input id="HiCriticalHum" type="number" placeholder="Higher Critical Humidity">%</input>
+        <input id="HiCriticalHum" type="number" max='100' min='1' placeholder="value">% (Must be: Lower Critical Humidity < value <= 100)</input>
       </div><br>
     <div>
         <label for="LowCriticalHum">Lower Critical Humidity: </label>
-        <input id="LowCriticalHum" type="number" placeholder="Lower Critical Humidity">%</input>
+        <input id="LowCriticalHum" type="number" max='100' min='0'  placeholder="value">% (Must be: 0 < value < Higher Critical Humidity)</input>
       </div><br>    
     
     <div>
-        <label for="PhnNumberCount">Phone Number count: </label>
-        <input type="number" id="PhnNumberCount" placeholder="Give total count to add">   
+        <label for="PhnNumberCount">Phone number count: </label>
+        <input type="number" id="PhnNumberCount" max=10 min='1' placeholder="Count"> (Maximum 10 phone numbers)</input>  
     <button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
     <br><br>
     <div id="container"/>
@@ -66,7 +75,12 @@ char webpage[] PROGMEM = R"rawliteral(
         <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
       </div>
     </fieldset>
-  </form>
+  </form><br> <br> <br>
+  <div>
+    <h2 hidden id="SavedDatahead">Saved configuration data:</h2>
+    <p1>
+    <div id="SavedData"></div>
+    </p1>
 </body>
 <script>
   function addFields()
@@ -125,7 +139,8 @@ char webpage[] PROGMEM = R"rawliteral(
         // Typical action to be performed when the document is ready:
         if(xhr.responseText != null)
         {
-        console.log(xhr.responseText);
+          document.getElementById("SavedData").innerHTML = this.responseText;
+      document.getElementById("SavedDatahead").style.visibility = "visible";
         }
       }
     };
@@ -154,10 +169,12 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   ticker.attach(0.2, tick);
 }
 
-String showDataHTML(float Temperaturestat, float Humiditystat){
+String ShowDataHTML(float Temperaturestat, float Humiditystat){
   String ptr = "<!DOCTYPE html> <html>\n";
   ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr += "<title>Central Billing Sher-e-Bangla</title>\n";
+  ptr += "<title>";
+  ptr += _configdata.Title;
+  ptr += "</title>\n";
   ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
   ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
   ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
@@ -165,7 +182,9 @@ String showDataHTML(float Temperaturestat, float Humiditystat){
   ptr += "</head>\n";
   ptr += "<body>\n";
   ptr += "<div id=\"webpage\">\n";
-  ptr += "<h1>Central Billing Sher-e-Bangla</h1>\n";
+  ptr += "<h1>";
+  ptr += _configdata.Name;
+  ptr += "</h1>\n";
 
   ptr += "<p>Temperature: ";
   ptr += Temperaturestat;
@@ -174,25 +193,30 @@ String showDataHTML(float Temperaturestat, float Humiditystat){
   ptr += Humiditystat;
   ptr += "%</p>";
 
-  ptr += "</div>\n";
+  ptr += "</div><br><br>\n";
+  ptr += "<button onclick=\"window.location.href = '/saveddata';\">Show saved configuration data</button>";
   ptr += "</body>\n";
   ptr += "</html>\n";
   return ptr;
 }
 
-//void getData() {
-//
-//  Temperature = dht.readTemperature(); // Gets the values of the temperature
-//  Humidity = dht.readHumidity(); // Gets the values of the humidity
-//
-//  Serial.println("Temperature data.. ");
-//  Serial.println(Temperature);
-//  server.send(200, "text/html", showDataHTML(Temperature, Humidity));
-//}
+void getData() {
+
+  Temperature = dht.readTemperature(); // Gets the values of the temperature
+  Humidity = dht.readHumidity(); // Gets the values of the humidity
+
+  Serial.println("Temperature data.. ");
+  Serial.println(Temperature);
+  
+  server.send(200, "text/html", ShowDataHTML(Temperature, Humidity));
+}
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  pinMode(DHTPin, INPUT);
+  
+  dht.begin();
   SPIFFS.begin();
   //set led pin as output
   pinMode(BUILTIN_LED, OUTPUT);
@@ -210,7 +234,7 @@ void setup() {
   wifiManager.setAPCallback(configModeCallback);
 
   //set static ip
-  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
+  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 1, 191), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
 
   wifiManager.setConfigPortalTimeout(180);
   //fetches ssid and pass and tries to connect
@@ -234,9 +258,11 @@ void setup() {
 
   //////////////////////////////////////////////////////////end of WIFI part
 
+  ReadFromFS();
   server.on("/config",[](){server.send_P(200,"text/html", webpage);});
   server.on("/settings", HTTP_POST, WriteToFS);
-  //server.on("/", getData);
+  server.on("/", getData);
+  server.on("/saveddata", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
 
   server.begin();
@@ -268,10 +294,30 @@ void WriteToFS(){
   Serial.println("config file saved: " + configFile);
   configFile.close();
   
-  server.send(200, "application/json", "{\"status\" : \"ok\"}");
+  //server.send(200, "application/json", "{\"status\" : \"ok\"}");
   delay(1000);
 
   ReadFromFS();
+  server.send(200, "text/plain", ConfigDataValues());
+}
+
+String ConfigDataValues()
+{
+  String ptr = "Title of Portal: " + (String)_configdata.Title + "<br>";
+  ptr += "Name of Portal: " + (String)_configdata.Name + "<br>";
+  ptr += "Critical Temperature: " + (String)_configdata.CriticalTemp + "<br>"; 
+  ptr += "Higher Critical Humidity: " + (String)_configdata.HiCriticalHum + "<br>";
+  ptr += "Lower Critical Humidity: " + (String)_configdata.LowCriticalHum + "<br>";
+  ptr += "Phone Numbers: ";
+
+  for(int i=0; i< _configdata.PhnNumberCount; i++)
+  {
+    if(i == _configdata.PhnNumberCount - 1)
+      ptr += (String)_configdata.PhnNumbers[i];
+    else
+      ptr += (String)_configdata.PhnNumbers[i] + ", ";
+  }
+  return ptr;
 }
 
 void ReadFromFS()
@@ -291,15 +337,19 @@ void ReadFromFS()
       JsonObject& jObject = jsonBuffer.parseObject(buf.get());
       if(jObject.success())
       {
-        _configdata.Title = jObject["Title"];
-        _configdata.Name = jObject["Name"];
+        const char* ch;
+        ch = jObject["Title"];
+        _configdata.Title = (String)ch;
+
+        ch = jObject["Name"];
+        _configdata.Name = (String)ch;
         _configdata.CriticalTemp = jObject["CriticalTemp"];
         _configdata.HiCriticalHum = jObject["HiCriticalHum"];
         _configdata.LowCriticalHum = jObject["LowCriticalHum"];
         _configdata.PhnNumberCount = jObject["PhnNumberCount"];
         //strcpy(_configdata.PhnNumbers, jObject["PhnNumbers"]);
 
-        const char* ch;
+        
         for(int i=0; i<_configdata.PhnNumberCount; i++)
         {
           ch = jObject["PhnNumbers"][i]; 

@@ -1,12 +1,12 @@
-<html>
+	<html>
 <head>
 <title>Config Form for Sensor Device</title>
 </head>
 <body>
 <h1 align="middle">Config SMS Settings</h1>
-  <form align="middle">
+<form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
     <fieldset>
-	  <div>
+      <div>
         <label for="Title">Title of Portal: </label>      
         <input id="Title" type="text" placeholder="Title">
       </div><br>
@@ -20,90 +20,96 @@
       </div><br>
       <div>
         <label for="HiCriticalHum">Higher Critical Humidity: </label>
-        <input id="HiCriticalHum" type="number" placeholder="Higher Critical Humidity">%</input>
+        <input id="HiCriticalHum" type="number" max='100' min='1' placeholder="value">% (Must be: Lower Critical Humidity < value <= 100)</input>
       </div><br>
-	  <div>
+    <div>
         <label for="LowCriticalHum">Lower Critical Humidity: </label>
-        <input id="LowCriticalHum" type="number" placeholder="Lower Critical Humidity">%</input>
-      </div><br>	  
-	  
-	  <div>
-        <label for="PhnNumberCount">Phone Number count: </label>
-        <input type="number" id="PhnNumberCount" placeholder="Give total count to add">		
-		<button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
-		<br><br>
-		<div id="container"/>
-	  </div><br> 
-	  <br>
+        <input id="LowCriticalHum" type="number" max='100' min='0'  placeholder="value">% (Must be: 0 < value < Higher Critical Humidity)</input>
+      </div><br>    
+    
+    <div>
+        <label for="PhnNumberCount">Phone number count: </label>
+        <input type="number" id="PhnNumberCount" max=10 min='1' placeholder="Count"> (Maximum 10 phone numbers)</input>  
+    <button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
+    <br><br>
+    <div id="container"/>
+    </div><br> 
+    <br>
       <div>
         <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
       </div>
     </fieldset>
-  </form>
+  </form><br> <br> <br>
+  <div>
+	  <h2 hidden id="SavedDatahead">Saved configuration data:</h2>
+	  <p1>
+	  <div id="SavedData"></div>
+	  </p1>
 </body>
 <script>
-	function addFields()
-	{
-		// Number of inputs to create
-		var number = document.getElementById("PhnNumberCount").value;
-		// Container <div> where dynamic content will be placed
-		var container = document.getElementById("container");
-		// Clear previous contents of the container
-		while (container.hasChildNodes()) {
-			container.removeChild(container.lastChild);
-		}
-		for (i=0;i<number;i++)
-		{
-			// Append a node with a random text
-			container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
-			// Create an <input> element, set its type and name attributes
-			var input = document.createElement("input");
-			input.type = "number";
-			input.id = "PhnNumber" + i;
-			input.placeholder = "01XXXXXXXXX";
-			container.appendChild(input);
-			// Append a line break 
-			container.appendChild(document.createElement("br"));
-		}
-	}
-	function myFunction()
-	{
-		console.log("button was clicked!");
-		var CriticalTemp = document.getElementById("CriticalTemp").value;
-		var HiCriticalHum = document.getElementById("HiCriticalHum").value;
-		var LowCriticalHum = document.getElementById("LowCriticalHum").value;
-		//var PhnNumbers = document.getElementById("container").value;
-	  
-		var number = document.getElementById("PhnNumberCount").value;
-		//var PhnNumbers = document.getElementById("container");
-		var phndata = [];
-		for (i=0;i<number;i++)
-		{
-			console.log("here"+ document.getElementById("PhnNumber" + i).value);
-			if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
-			{
-				phndata[i] = document.getElementById("PhnNumber" + i).value;
-			}
-		}
-			
-	  
-		var data = {CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, PhnNumbers:phndata};
-		console.log(data);
-		var xhr = new XMLHttpRequest();
-		var url = "/settings";
-		xhr.onreadystatechange = function() 
-		{
-			if (this.readyState == 4 && this.status == 200) 
-			{
-			  // Typical action to be performed when the document is ready:
-			  if(xhr.responseText != null)
-			  {
-				console.log(xhr.responseText);
-			  }
-			}
-		};
-		xhr.open("POST", url, true);
-		xhr.send(JSON.stringify(data));
-	};
+  function addFields()
+  {
+    // Number of inputs to create
+    var number = document.getElementById("PhnNumberCount").value;
+    // Container <div> where dynamic content will be placed
+    var container = document.getElementById("container");
+    // Clear previous contents of the container
+    while (container.hasChildNodes()) {
+      container.removeChild(container.lastChild);
+    }
+    for (i=0;i<number;i++)
+    {
+      // Append a node with a random text
+      container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
+      // Create an <input> element, set its type and name attributes
+      var input = document.createElement("input");
+      input.type = "number";
+      input.id = "PhnNumber" + i;
+      input.placeholder = "01XXXXXXXXX";
+      container.appendChild(input);
+      // Append a line break 
+      container.appendChild(document.createElement("br"));
+    }
+  }
+  function myFunction()
+  {
+    console.log("button was clicked!");
+    var Title = document.getElementById("Title").value;
+    var Name = document.getElementById("Name").value;
+    var CriticalTemp = document.getElementById("CriticalTemp").value;
+    var HiCriticalHum = document.getElementById("HiCriticalHum").value;
+    var LowCriticalHum = document.getElementById("LowCriticalHum").value;
+    //var PhnNumbers = document.getElementById("container").value;
+    
+    var PhnNumberCount = document.getElementById("PhnNumberCount").value;
+    //var PhnNumbers = document.getElementById("container");
+    var phndata = [];
+    for (i=0; i<PhnNumberCount; i++)
+    {
+      if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
+      {
+        phndata[i] = document.getElementById("PhnNumber" + i).value;
+      }
+    }      
+    
+    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, PhnNumberCount:phndata.length, PhnNumbers:phndata};
+    console.log(data);
+    var xhr = new XMLHttpRequest();
+    var url = "/settings";
+    xhr.onreadystatechange = function() 
+    {
+      if (this.readyState == 4 && this.status == 200) 
+      {
+        // Typical action to be performed when the document is ready:
+        if(xhr.responseText != null)
+        {
+          document.getElementById("SavedData").innerHTML = this.responseText;
+		  document.getElementById("SavedDatahead").style.visibility = "visible";
+        }
+      }
+    };
+    xhr.open("POST", url, true);
+    xhr.send(JSON.stringify(data));
+  };
 </script>
 </html>
