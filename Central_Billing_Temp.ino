@@ -188,10 +188,10 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat){
 
   ptr += "<p>Temperature: ";
   ptr += Temperaturestat;
-  ptr += "°C</p>"; 
+  ptr += " °C</p>"; 
   ptr += "<p>Humidity: ";
   ptr += Humiditystat;
-  ptr += "%</p>";
+  ptr += " %</p>";
 
   ptr += "</div><br><br>\n";
   ptr += "<button onclick=\"window.location.href = '/saveddata';\">Show saved configuration data</button>";
@@ -268,11 +268,6 @@ void setup() {
   server.begin();
   Serial.println("Server started");
 
-}
-
-void loop(){
-  // put your main code here, to run repeatedly:
-  server.handleClient();
 }
 
 void handle_NotFound() {
@@ -369,5 +364,96 @@ void ReadFromFS()
         delay(1000);
       }
     }
+  }
+}
+
+int timeSinceLastRead = 0;
+int interval = 12000;
+int interval4sms = 300000;//1500000;
+unsigned long previousMillis = 0;
+unsigned long currentMillis;
+unsigned long previousMillis4sms = 0;
+float temp_store = 0;
+float hum_store = 0;
+int data_count = 0;
+int issue_count = 0;
+bool send_staus = false;
+
+void loop(){
+  // put your main code here, to run repeatedly:
+  server.handleClient();
+
+  currentMillis = millis();
+  timeSinceLastRead = currentMillis - previousMillis;
+    if (timeSinceLastRead >= interval) 
+    {
+      // Reading temperature or humidity takes about 250 milliseconds!
+      // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+      float h = dht.readHumidity();
+      //Serial.println(h);
+      // Read temperature as Celsius (the default)
+      float t = dht.readTemperature();
+      //Serial.println(t);
+      // Read temperature as Fahrenheit (isFahrenheit = true)
+      //float f = dht.readTemperature(true);
+      
+  
+      // Check if any reads failed and exit early (to try again).
+      if (isnan(h) || isnan(t)) 
+      {
+        Serial.println("Failed to read from DHT sensor!");
+        timeSinceLastRead = 0;
+        previousMillis = currentMillis;
+        return;
+      }
+      temp_store = temp_store + t;
+      hum_store = hum_store + h;
+      data_count++;
+      if (data_count == 5) 
+      {
+        t = temp_store / 5.0;
+        h = hum_store / 5.0;
+        temp_store = 0;
+        hum_store = 0;
+        data_count = 0;
+        Serial.println(t);
+        Serial.println(h);
+        
+        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0)
+        {
+          Serial.println("config data present");
+          if(t > _configdata.CriticalTemp || h > _configdata.HiCriticalHum || h < _configdata.LowCriticalHum)    
+          {
+            Serial.println("condition achieved");
+            if(!send_staus)
+            {
+              issue_count++;
+              Serial.println("issue_count: " + String(issue_count));
+              if(issue_count == 2)//5
+              {                
+                for(int i=0; i<_configdata.PhnNumberCount; i++)
+                {
+                  Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);                        
+                }
+                issue_count = 0;
+                send_staus = true;              
+              }
+            }
+            if(currentMillis - previousMillis4sms >= interval4sms)
+            {            
+              send_staus = false;
+              previousMillis4sms = currentMillis;
+            }            
+          }
+          else
+          {
+            send_staus = false;
+            previousMillis4sms = 0;
+          }
+        }
+      }
+  
+    timeSinceLastRead = 0;
+    previousMillis = currentMillis;
   }
 }
