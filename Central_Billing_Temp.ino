@@ -19,8 +19,7 @@ uint8_t DHTPin = D5;
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
 
-float Temperature;
-float Humidity;
+String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=teluser&pass=Tel$2017&mobile=";
 
 struct ConfigData
 {
@@ -379,6 +378,33 @@ int data_count = 0;
 int issue_count = 0;
 bool send_staus = false;
 
+
+void sendSms(String phone, float t, float h)
+{
+
+  if(WiFi.status() == WL_CONNECTED) // Check the wifi connection
+  {     
+    String PayLoad = "Alert!!!" + _configdata.Name + "%20Temperature%20is%20" + String(t) + "deg Celcius and humidity is " + String(h) + "%";
+    String link = BaseLink + PhoneNo[2] + "&sms=" + PayLoad;
+    // String link = BaseLink + phoneNumber + "&sms=" + PayLoad;
+    Serial.println(link);
+    http.begin(link); 
+    int httpCode = http.GET();  
+    if (httpCode > 0) { //Check for the returning code 
+        String responseBody = http.getString();
+        Serial.println(httpCode);
+        Serial.println(responseBody);
+      }else {
+      Serial.println("Error on HTTP request");
+    }
+    http.end();   
+    }else {
+       Serial.println("Microcontroller is not connected to the wifi device"); 
+    }    
+  delay(100000);
+      
+}
+
 void loop(){
   // put your main code here, to run repeatedly:
   server.handleClient();
@@ -433,7 +459,8 @@ void loop(){
               {                
                 for(int i=0; i<_configdata.PhnNumberCount; i++)
                 {
-                  Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);                        
+                  Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);
+                                          
                 }
                 issue_count = 0;
                 send_staus = true;              
