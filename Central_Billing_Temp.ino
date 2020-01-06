@@ -5,6 +5,7 @@
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>
+#include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #define DHTTYPE DHT22
 
@@ -19,7 +20,8 @@ uint8_t DHTPin = D5;
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
 
-String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=teluser&pass=Tel$2017&mobile=";
+String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+HTTPClient http;
 
 struct ConfigData
 {
@@ -199,14 +201,15 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat){
   return ptr;
 }
 
-void getData() {
+void getData() 
+{
 
-  Temperature = dht.readTemperature(); // Gets the values of the temperature
-  Humidity = dht.readHumidity(); // Gets the values of the humidity
+  float Temperature = dht.readTemperature(); // Gets the values of the temperature
+  float Humidity = dht.readHumidity(); // Gets the values of the humidity
 
   Serial.println("Temperature data.. ");
   Serial.println(Temperature);
-  
+  Serial.println(Humidity);
   server.send(200, "text/html", ShowDataHTML(Temperature, Humidity));
 }
 
@@ -384,28 +387,36 @@ void sendSms(String phone, float t, float h)
 
   if(WiFi.status() == WL_CONNECTED) // Check the wifi connection
   {     
-    String PayLoad = "Alert!!!" + _configdata.Name + "%20Temperature%20is%20" + String(t) + "deg Celcius and humidity is " + String(h) + "%";
-    String link = BaseLink + PhoneNo[2] + "&sms=" + PayLoad;
-    // String link = BaseLink + phoneNumber + "&sms=" + PayLoad;
+    String PayLoad = "Alert!!! In " + _configdata.Name + ", Temperature is " + String(t) + "deg Celcius and humidity is " + String(h) + "%";
+    Serial.println(PayLoad);
+    PayLoad.replace(" ", "%20");
+    Serial.println(PayLoad);
+    String link = BaseLink + phone + "&sms=" + PayLoad;
+
     Serial.println(link);
     http.begin(link); 
     int httpCode = http.GET();  
-    if (httpCode > 0) { //Check for the returning code 
+    if (httpCode > 0) 
+    { //Check for the returning code 
         String responseBody = http.getString();
-        Serial.println(httpCode);
-        Serial.println(responseBody);
-      }else {
+        Serial.println("httpCode: " + httpCode);
+        Serial.println("Response: " + responseBody);
+     }
+     else 
+     {
       Serial.println("Error on HTTP request");
-    }
+     }
     http.end();   
-    }else {
+    }
+    else 
+    {
        Serial.println("Microcontroller is not connected to the wifi device"); 
     }    
-  delay(100000);
-      
+  delay(100);      
 }
 
-void loop(){
+void loop()
+{
   // put your main code here, to run repeatedly:
   server.handleClient();
 
@@ -460,7 +471,7 @@ void loop(){
                 for(int i=0; i<_configdata.PhnNumberCount; i++)
                 {
                   Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);
-                                          
+                  sendSms(_configdata.PhnNumbers[i], t, h);                                                           
                 }
                 issue_count = 0;
                 send_staus = true;              
