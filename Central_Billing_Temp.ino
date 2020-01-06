@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
+#include <HttpClient.h>
 #define DHTTYPE DHT22
 
 
@@ -381,32 +382,54 @@ int data_count = 0;
 int issue_count = 0;
 bool send_staus = false;
 
-
+WiFiClient client;
+const char* host = "bulksms.teletalk.com.bd";
+const int httpPort = 80;
 void sendSms(String phone, float t, float h)
 {
 
   if(WiFi.status() == WL_CONNECTED) // Check the wifi connection
   {     
-    String PayLoad = "Alert!!! In " + _configdata.Name + ", Temperature is " + String(t) + "deg Celcius and humidity is " + String(h) + "%";
+    String PayLoad = "Alert!!! In " + _configdata.Name + ", Temperature is " + String(t) + " deg Celcius and humidity is " + String(h) + "%";
     Serial.println(PayLoad);
     PayLoad.replace(" ", "%20");
     Serial.println(PayLoad);
     String link = BaseLink + phone + "&sms=" + PayLoad;
 
     Serial.println(link);
-    http.begin(link); 
-    int httpCode = http.GET();  
-    if (httpCode > 0) 
-    { //Check for the returning code 
-        String responseBody = http.getString();
-        Serial.println("httpCode: " + httpCode);
-        Serial.println("Response: " + responseBody);
-     }
-     else 
-     {
-      Serial.println("Error on HTTP request");
-     }
-    http.end();   
+//    http.begin(link); 
+//    int httpCode = http.GET();  
+//    if (httpCode > 0) 
+//    { //Check for the returning code 
+//        String responseBody = http.getString();
+//        Serial.println("httpCode: " + httpCode);
+//        Serial.println("Response: " + responseBody);
+//     }
+//     else 
+//     {
+//      Serial.println("Error on HTTP request");
+//     }
+//    http.end();   
+
+    if (!client.connect(host, httpPort)) {
+    Serial.println("connection failed");
+    
+  }
+  String StartURL = "/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=" + phone + "&sms=" + PayLoad;
+  client.print(String("GET ") + StartURL + " HTTP/1.1\r\n" +
+               "Host: " + host + "\r\n" +
+               "User-Agent: RCRemote\r\n" +
+               "Connection: close\r\n\r\n");
+  Serial.println("Triggering");
+  delay(20);
+
+  
+  http.begin(link);
+  int httpCodeT = http.GET();
+  String responseBody = http.getString();
+  Serial.println(httpCodeT);
+  Serial.println(responseBody);
+  http.end();
     }
     else 
     {
@@ -466,7 +489,7 @@ void loop()
             {
               issue_count++;
               Serial.println("issue_count: " + String(issue_count));
-              if(issue_count == 2)//5
+              if(issue_count == 1)//5
               {                
                 for(int i=0; i<_configdata.PhnNumberCount; i++)
                 {
