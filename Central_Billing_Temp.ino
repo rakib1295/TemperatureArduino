@@ -17,6 +17,7 @@ Ticker ticker;
 ESP8266WebServer server(80);
 
 uint8_t DHTPin = D5;
+//uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
@@ -228,8 +229,8 @@ void setup() {
 
   Serial.println("again called");
   //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wifiManager;
+  //Local intialization. Once its business is done, there is no need to keep it around
   //reset settings - for testing
   //wifiManager.resetSettings();
 
@@ -237,7 +238,7 @@ void setup() {
   wifiManager.setAPCallback(configModeCallback);
 
   //set static ip
-  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 1, 191), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
+  //wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
 
   wifiManager.setConfigPortalTimeout(180);
   //fetches ssid and pass and tries to connect
@@ -258,7 +259,7 @@ void setup() {
   //keep LED on if low
   digitalWrite(BUILTIN_LED, LOW);
   Serial.println("now: "+WiFi.SSID());
-
+  
   //////////////////////////////////////////////////////////end of WIFI part
 
   ReadFromFS();
@@ -347,22 +348,24 @@ void ReadFromFS()
         _configdata.PhnNumberCount = jObject["PhnNumberCount"];
         //strcpy(_configdata.PhnNumbers, jObject["PhnNumbers"]);
 
-        
+        Serial.println("Config File data: ");
+        Serial.println("Number of phones: " + String(_configdata.PhnNumberCount));
+        Serial.println("List of phones: ");
+
+
         for(int i=0; i<_configdata.PhnNumberCount; i++)
         {
           ch = jObject["PhnNumbers"][i]; 
           _configdata.PhnNumbers[i] = (String)ch;
           Serial.println(_configdata.PhnNumbers[i]);
       
-        }
+        }        
         
-        Serial.println("Config File data: ");
         Serial.println(_configdata.Title);
         Serial.println(_configdata.Name);
         Serial.println(_configdata.CriticalTemp);
         Serial.println(_configdata.HiCriticalHum);
         Serial.println(_configdata.LowCriticalHum);
-        Serial.println(_configdata.PhnNumberCount);
         
         delay(1000);
       }
@@ -372,7 +375,7 @@ void ReadFromFS()
 
 int timeSinceLastRead = 0;
 int interval = 12000;
-int interval4sms = 300000;//1500000;
+int interval4sms = 1800000;
 unsigned long previousMillis = 0;
 unsigned long currentMillis;
 unsigned long previousMillis4sms = 0;
@@ -382,9 +385,7 @@ int data_count = 0;
 int issue_count = 0;
 bool send_staus = false;
 
-WiFiClient client;
-const char* host = "bulksms.teletalk.com.bd";
-const int httpPort = 80;
+
 void sendSms(String phone, float t, float h)
 {
 
@@ -396,45 +397,22 @@ void sendSms(String phone, float t, float h)
     Serial.println(PayLoad);
     String link = BaseLink + phone + "&sms=" + PayLoad;
 
+    //String APILink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=01917300427&sms=Hello";
     Serial.println(link);
-//    http.begin(link); 
-//    int httpCode = http.GET();  
-//    if (httpCode > 0) 
-//    { //Check for the returning code 
-//        String responseBody = http.getString();
-//        Serial.println("httpCode: " + httpCode);
-//        Serial.println("Response: " + responseBody);
-//     }
-//     else 
-//     {
-//      Serial.println("Error on HTTP request");
-//     }
-//    http.end();   
 
-    if (!client.connect(host, httpPort)) {
-    Serial.println("connection failed");
-    
+    http.begin(link);
+    int httpCodeT = http.GET();
+    String responseBody = http.getString();
+
+    Serial.println(httpCodeT);
+    Serial.println(responseBody);
+
+    http.end();
   }
-  String StartURL = "/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=" + phone + "&sms=" + PayLoad;
-  client.print(String("GET ") + StartURL + " HTTP/1.1\r\n" +
-               "Host: " + host + "\r\n" +
-               "User-Agent: RCRemote\r\n" +
-               "Connection: close\r\n\r\n");
-  Serial.println("Triggering");
-  delay(20);
-
-  
-  http.begin(link);
-  int httpCodeT = http.GET();
-  String responseBody = http.getString();
-  Serial.println(httpCodeT);
-  Serial.println(responseBody);
-  http.end();
-    }
-    else 
-    {
-       Serial.println("Microcontroller is not connected to the wifi device"); 
-    }    
+  else 
+  {
+     Serial.println("Microcontroller is not connected to the wifi device"); 
+  }    
   delay(100);      
 }
 
@@ -442,6 +420,7 @@ void loop()
 {
   // put your main code here, to run repeatedly:
   server.handleClient();
+
 
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
@@ -489,7 +468,7 @@ void loop()
             {
               issue_count++;
               Serial.println("issue_count: " + String(issue_count));
-              if(issue_count == 1)//5
+              if(issue_count == 5)//5
               {                
                 for(int i=0; i<_configdata.PhnNumberCount; i++)
                 {
