@@ -16,13 +16,15 @@
 Ticker ticker;
 ESP8266WebServer server(80);
 
-uint8_t DHTPin = D5;
+uint8_t DHTPin = D4;
 //uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
 
-String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+String BaseLink = "http://103.230.104.200/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+
+//String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 HTTPClient http;
 
 struct ConfigData
@@ -238,7 +240,7 @@ void setup() {
   wifiManager.setAPCallback(configModeCallback);
 
   //set static ip
-  //wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
+  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
 
   wifiManager.setConfigPortalTimeout(180);
   //fetches ssid and pass and tries to connect
@@ -259,6 +261,16 @@ void setup() {
   //keep LED on if low
   digitalWrite(BUILTIN_LED, LOW);
   Serial.println("now: "+WiFi.SSID());
+
+  //for dnd issue
+//  String _ss = WiFi.SSID();
+//  String _pw = WiFi.psk();
+//  delay(1000);
+//  WiFi.mode(WIFI_OFF);
+//  WiFi.config(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0), IPAddress(8, 8, 8, 8));
+//  WiFi.begin(_ss,_pw);
+//  Serial.println("now: new");
+
   
   //////////////////////////////////////////////////////////end of WIFI part
 
@@ -289,7 +301,7 @@ void WriteToFS(){
     Serial.println("- failed to open file for writing");
     return;
   }
-  jObject.printTo(configFile);  
+  jObject.printTo(configFile);
   Serial.println("config file saved: " + configFile);
   configFile.close();
   
@@ -324,6 +336,7 @@ void ReadFromFS()
   if(SPIFFS.exists("/config.json"))
   {
     File configFile = SPIFFS.open("/config.json", "r");
+    Serial.println("configFile" + String(configFile));
     if(configFile)
     {
       Serial.print("Reading Data from Config File.....\n");
@@ -374,8 +387,8 @@ void ReadFromFS()
 }
 
 int timeSinceLastRead = 0;
-int interval = 12000;
-int interval4sms = 1800000;
+int interval = 12000; //12 sec
+int interval4sms = 1800000; //30 min
 unsigned long previousMillis = 0;
 unsigned long currentMillis;
 unsigned long previousMillis4sms = 0;
