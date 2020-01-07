@@ -483,6 +483,8 @@ void loop()
             {            
               send_staus = false;
               previousMillis4sms = currentMillis;
+              Serial.println("send status true");
+
             }            
           }
           else
