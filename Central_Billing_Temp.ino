@@ -26,6 +26,9 @@ String BaseLink = "http://103.230.104.200/link_sms_send.php?op=SMS&user=temperat
 
 //String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 HTTPClient http;
+const char* www_realm = "Custom Auth Realm";
+// the Content of the HTML response in case of Unautherized Access Default:empty
+String authFailResponse = "Authentication Failed";
 
 struct ConfigData
 {
@@ -82,9 +85,9 @@ char webpage[] PROGMEM = R"rawliteral(
     </fieldset>
   </form><br> <br> <br>
   <div>
-    <h2 hidden id="SavedDatahead">Saved configuration data:</h2>
+    <h2 hidden id="SavedConfighead">Saved configuration data:</h2>
     <p1>
-    <div id="SavedData"></div>
+    <div id="SavedConfig"></div>
     </p1>
 </body>
 <script>
@@ -144,8 +147,8 @@ char webpage[] PROGMEM = R"rawliteral(
         // Typical action to be performed when the document is ready:
         if(xhr.responseText != null)
         {
-          document.getElementById("SavedData").innerHTML = this.responseText;
-      document.getElementById("SavedDatahead").style.visibility = "visible";
+          document.getElementById("SavedConfig").innerHTML = this.responseText;
+      document.getElementById("SavedConfighead").style.visibility = "visible";
         }
       }
     };
@@ -199,7 +202,7 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat){
   ptr += " %</p>";
 
   ptr += "</div><br><br>\n";
-  ptr += "<button onclick=\"window.location.href = '/saveddata';\">Show saved configuration data</button>";
+  ptr += "<button onclick=\"window.location.href = '/savedconfig';\">Show saved configuration data</button>";
   ptr += "</body>\n";
   ptr += "</html>\n";
   return ptr;
@@ -276,10 +279,30 @@ void setup() {
 
   ReadFromFS();
   server.on("/config",[](){server.send_P(200,"text/html", webpage);});
-  server.on("/settings", HTTP_POST, WriteToFS);
+  //server.on("/settings", HTTP_POST, WriteToFS);
   server.on("/", getData);
-  server.on("/saveddata", [](){server.send(200, "text/html", ConfigDataValues());});
+  server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
+
+
+
+  server.on("/settings", HTTP_POST, []() {
+    if (!server.authenticate("rakib", WiFi.psk().c_str()))
+      //Basic Auth Method with Custom realm and Failure Response
+      //return server.requestAuthentication(BASIC_AUTH, www_realm, authFailResponse);
+      //Digest Auth Method with realm="Login Required" and empty Failure Response
+      //return server.requestAuthentication(DIGEST_AUTH);
+      //Digest Auth Method with Custom realm and empty Failure Response
+      //return server.requestAuthentication(DIGEST_AUTH, www_realm);
+      //Digest Auth Method with Custom realm and Failure Response
+    {
+      return server.requestAuthentication(DIGEST_AUTH, www_realm, authFailResponse);
+    }
+    //server.send(200, "text/plain", "Login OK");
+    Serial.println("Server auth ok");
+
+    WriteToFS();
+  });
 
   server.begin();
   Serial.println("Server started");
@@ -302,7 +325,7 @@ void WriteToFS(){
     return;
   }
   jObject.printTo(configFile);
-  Serial.println("config file saved: " + configFile);
+  //Serial.println("config file saved: " + configFile);
   configFile.close();
   
   //server.send(200, "application/json", "{\"status\" : \"ok\"}");
