@@ -16,13 +16,14 @@
 Ticker ticker;
 ESP8266WebServer server(80);
 
-uint8_t DHTPin = D4;
+uint8_t DHTPin = D5;
 //uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
 
 String BaseLink = "http://103.230.104.200/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+bool SMSRunning = false;
 
 //String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 HTTPClient http;
@@ -38,126 +39,225 @@ struct ConfigData
   float HiCriticalHum = 0.0;
   float LowCriticalHum = 0.0;
   int PhnNumberCount = 0;
+  int SensePeriod = 0; //min
+  int SMSInterval = 0; //min
   String PhnNumbers[10];
 } _configdata;
 
-char webpage[] PROGMEM = R"rawliteral(
-<html>
+String WebPage_Header PROGMEM = R"rawliteral(
+<!DOCTYPE html> 
+<html> 
 <head>
-<title>Config Form for Sensor Device</title>
-</head>
-<body>
-<h1 align="middle">Config SMS Settings</h1>
-<form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
-    <fieldset>
-      <div>
-        <label for="Title">Title of Portal: </label>      
-        <input id="Title" type="text" placeholder="Title">
-      </div><br>
-      <div>
-        <label for="Name">Name of Portal: </label>      
-        <input id="Name" type="text" placeholder="Name">
-      </div><br>
-      <div>
-        <label for="CriticalTemp">Critical Temperature: </label>      
-        <input id="CriticalTemp" type="number" placeholder="Critical Temperature">°C</input>
-      </div><br>
-      <div>
-        <label for="HiCriticalHum">Higher Critical Humidity: </label>
-        <input id="HiCriticalHum" type="number" max='100' min='1' placeholder="value">% (Must be: Lower Critical Humidity < value <= 100)</input>
-      </div><br>
-    <div>
-        <label for="LowCriticalHum">Lower Critical Humidity: </label>
-        <input id="LowCriticalHum" type="number" max='100' min='0'  placeholder="value">% (Must be: 0 < value < Higher Critical Humidity)</input>
-      </div><br>    
-    
-    <div>
-        <label for="PhnNumberCount">Phone number count: </label>
-        <input type="number" id="PhnNumberCount" max=10 min='1' placeholder="Count"> (Maximum 10 phone numbers)</input>  
-    <button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
-    <br><br>
-    <div id="container"/>
-    </div><br> 
-    <br>
-      <div>
-        <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
-      </div>
-    </fieldset>
-  </form><br> <br> <br>
-  <div>
-    <h2 hidden id="SavedConfighead">Saved configuration data:</h2>
-    <p1>
-    <div id="SavedConfig"></div>
-    </p1>
-</body>
-<script>
-  function addFields()
+<meta name="viewport" content="width=device-width, initial-scale=1.0  user-scalable=no"> 
+<title>)rawliteral";
+
+String WebPage_Style PROGMEM = R"rawliteral(</title> 
+  <style>
+  html
   {
-    // Number of inputs to create
-    var number = document.getElementById("PhnNumberCount").value;
-    // Container <div> where dynamic content will be placed
-    var container = document.getElementById("container");
-    // Clear previous contents of the container
-    while (container.hasChildNodes()) {
-      container.removeChild(container.lastChild);
-    }
-    for (i=0;i<number;i++)
+    font-family: Helvetica; display: inline-block; margin: 0px auto;
+  } 
+  body
+  {margin-top: 50px;} 
+  h1 {color: #444444;margin: 50px auto 30px;}
+  p {font-size: 24px;margin-bottom: 10px;} 
+  footer{ position: fixed; left: 0; bottom: 0; width: 100%; background-color: black; color:white; text-align: middle;} 
+  .column{float: left;} 
+  .left, 
+  .right{width: 25%;} 
+  .middle{width: 50%;} 
+  a{color:white;} 
+  @media only screen and (max-width: 768px) 
+  { [class*="col"] 
     {
-      // Append a node with a random text
-      container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
-      // Create an <input> element, set its type and name attributes
-      var input = document.createElement("input");
-      input.type = "number";
-      input.id = "PhnNumber" + i;
-      input.placeholder = "01XXXXXXXXX";
-      container.appendChild(input);
-      // Append a line break 
-      container.appendChild(document.createElement("br"));
+      width: 100%;
     }
   }
-  function myFunction()
+  </style> 
+</head> 
+<body> 
+<div id=\"webpage\" align="center"> 
+  <h1>)rawliteral";
+  
+String WebPage_P1 PROGMEM = R"rawliteral( </h1><p>Temperature: )rawliteral";
+String WebPage_P2 PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
+String WebPage_P3 PROGMEM = R"rawliteral( %</p> <br><br> )rawliteral";
+String WebPage_Btn1 PROGMEM = R"rawliteral(  <div><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button> </div>)rawliteral";
+String WebPage_Btn2 PROGMEM = R"rawliteral(</div>
+<br><br><br><br>
+<div align="left">
+ <button onclick="window.location.href = '/savedconfig';">Show saved configuration data</button><br><br> 
+  <button onclick="window.location.href = '/config';">Edit Configuration</button>
+</div>)rawliteral";
+const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
+<div>
+  <div class="column right" align="left">
+    <p>Developed by:</p>
+ <ul>
+    <li><a href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid</a></li>
+    <li><a href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman</a></li>
+    <li><a href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
+  </ul>
+  </div>
+  <div class="column middle" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved.<br>Version: 2.0</div>
+    <div class="column left"><br>
+  </div>
+</div>
+</footer>
+</body>)rawliteral";
+
+String WebPage_Script PROGMEM = R"rawliteral(<script>
+function myFunction()
   {
-    console.log("button was clicked!");
-    var Title = document.getElementById("Title").value;
-    var Name = document.getElementById("Name").value;
-    var CriticalTemp = document.getElementById("CriticalTemp").value;
-    var HiCriticalHum = document.getElementById("HiCriticalHum").value;
-    var LowCriticalHum = document.getElementById("LowCriticalHum").value;
-    //var PhnNumbers = document.getElementById("container").value;
-    
-    var PhnNumberCount = document.getElementById("PhnNumberCount").value;
-    //var PhnNumbers = document.getElementById("container");
-    var phndata = [];
-    for (i=0; i<PhnNumberCount; i++)
-    {
-      if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
-      {
-        phndata[i] = document.getElementById("PhnNumber" + i).value;
-      }
-    }      
-    
-    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, PhnNumberCount:phndata.length, PhnNumbers:phndata};
-    console.log(data);
     var xhr = new XMLHttpRequest();
-    var url = "/settings";
+    var url = "/stopsms";
     xhr.onreadystatechange = function() 
     {
-      if (this.readyState == 4 && this.status == 200) 
+      if (this.readyState == 4 && this.status == 200)
       {
         // Typical action to be performed when the document is ready:
         if(xhr.responseText != null)
         {
-          document.getElementById("SavedConfig").innerHTML = this.responseText;
-      document.getElementById("SavedConfighead").style.visibility = "visible";
+          document.getElementById("SMSinfo").innerHTML = this.responseText;
         }
       }
     };
-    xhr.open("POST", url, true);
-    xhr.send(JSON.stringify(data));
+    xhr.open("GET", url, true);
+    xhr.send();
   };
-</script>
-</html>
-)rawliteral";
+</script>)rawliteral";
+String WebPage_End PROGMEM = R"rawliteral(</html>)rawliteral";
+
+//const char ConfigPage[] PROGMEM = R"rawliteral(
+//<!DOCTYPE html> 
+//<html>
+//<head>
+//<title>Config Form for Sensor Device</title>
+//</head>
+//<body>
+//<h1 align="middle">Config SMS Settings</h1>
+//<form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
+//    <fieldset>
+//      <div>
+//        <label for="Title">Title of Portal: </label>      
+//        <input id="Title" type="text" placeholder="Title">
+//      </div><br>
+//      <div>
+//        <label for="Name">Name of Portal: </label>      
+//        <input id="Name" type="text" placeholder="Name">
+//      </div><br>
+//      <div>
+//        <label for="CriticalTemp">Critical Temperature: </label>      
+//        <input id="CriticalTemp" type="number" placeholder="Critical Temperature">&deg;C</input>
+//      </div><br>
+//      <div>
+//        <label for="HiCriticalHum">Higher Critical Humidity: </label>
+//        <input id="HiCriticalHum" type="number" max='100' min='1' placeholder="value">% (Must be: Lower Critical Humidity < value <= 100)</input>
+//      </div><br>
+//    <div>
+//        <label for="LowCriticalHum">Lower Critical Humidity: </label>
+//        <input id="LowCriticalHum" type="number" max='100' min='0'  placeholder="value">% (Must be: 0 < value < Higher Critical Humidity)</input>
+//      </div><br>
+//      
+//      <div>
+//        <label for="SensePeriod">Sensing period of critical values before sending SMS: </label>
+//        <input id="SensePeriod" type="number" min='1'  placeholder="value">Minute(s) (Must be: 1 <= value < SMS Interval</input>
+//      </div><br> 
+//      
+//      <div>
+//        <label for="SMSInterval">SMS Interval: </label>
+//        <input id="SMSInterval" type="number" min='1'  placeholder="value">Minutes (Must be: Sensing period < value)</input>
+//      </div><br> 
+//      
+//    <div>
+//        <label for="PhnNumberCount">Phone number count: </label>
+//        <input type="number" id="PhnNumberCount" max=10 min='1' placeholder="Count"> (Maximum 10 phone numbers)</input>  
+//    <button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
+//    <br><br>
+//    <div id="container"/>
+//    </div><br> 
+//    <br>
+//      <div>
+//        <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
+//      </div>
+//    </fieldset>
+//  </form><br> <br> <br>
+//  <div>
+//    <h2 hidden id="SavedConfighead">Saved configuration data:</h2>
+//    <p1>
+//    <div id="SavedConfig"></div>
+//    </p1>
+//</body>
+//<script>
+//  function addFields()
+//  {
+//    // Number of inputs to create
+//    var number = document.getElementById("PhnNumberCount").value;
+//    // Container <div> where dynamic content will be placed
+//    var container = document.getElementById("container");
+//    // Clear previous contents of the container
+//    while (container.hasChildNodes()) {
+//      container.removeChild(container.lastChild);
+//    }
+//    for (i=0;i<number;i++)
+//    {
+//      // Append a node with a random text
+//      container.appendChild(document.createTextNode("Phone Number " + (i+1) + ": "));
+//      // Create an <input> element, set its type and name attributes
+//      var input = document.createElement("input");
+//      input.type = "number";
+//      input.id = "PhnNumber" + i;
+//      input.placeholder = "01XXXXXXXXX";
+//      container.appendChild(input);
+//      // Append a line break 
+//      container.appendChild(document.createElement("br"));
+//    }
+//  }
+//  function myFunction()
+//  {
+//    console.log("button clicked!");
+//    var Title = document.getElementById("Title").value;
+//    var Name = document.getElementById("Name").value;
+//    var CriticalTemp = document.getElementById("CriticalTemp").value;
+//    var HiCriticalHum = document.getElementById("HiCriticalHum").value;
+//    var LowCriticalHum = document.getElementById("LowCriticalHum").value;
+//    var SensePeriod = document.getElementById("SensePeriod").value;
+//    var SMSInterval = document.getElementById("SMSInterval").value;
+//    //var PhnNumbers = document.getElementById("container").value;
+//    
+//    var PhnNumberCount = document.getElementById("PhnNumberCount").value;
+//    //var PhnNumbers = document.getElementById("container");
+//    var phndata = [];
+//    for (i=0; i<PhnNumberCount; i++)
+//    {
+//      if(document.getElementById("PhnNumber" + i).value != "") //if blank form, then will ignore
+//      {
+//        phndata[i] = document.getElementById("PhnNumber" + i).value;
+//      }
+//    }      
+//    
+//    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, SensePeriod:SensePeriod, SMSInterval:SMSInterval, PhnNumberCount:phndata.length, PhnNumbers:phndata};
+//    console.log(data);
+//    var xhr = new XMLHttpRequest();
+//    var url = "/settings";
+//    xhr.onreadystatechange = function() 
+//    {
+//      if (this.readyState == 4 && this.status == 200)
+//      {
+//        // Typical action to be performed when the document is ready:
+//        if(xhr.responseText != null)
+//        {
+//          document.getElementById("SavedConfig").innerHTML = this.responseText;
+//      document.getElementById("SavedConfighead").style.visibility = "visible";
+//        }
+//      }
+//    };
+//    xhr.open("POST", url, true);
+//    xhr.send(JSON.stringify(data));
+//  };
+//</script>
+//</html>
+//)rawliteral";
 
 void tick()
 {
@@ -175,49 +275,6 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   //server.on();
   //entered config mode, make led toggle faster
   ticker.attach(0.2, tick);
-}
-
-String ShowDataHTML(float Temperaturestat, float Humiditystat){
-  String ptr = "<!DOCTYPE html> <html>\n";
-  ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-  ptr += "<title>";
-  ptr += _configdata.Title;
-  ptr += "</title>\n";
-  ptr += "<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
-  ptr += "body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;}\n";
-  ptr += "p {font-size: 24px;color: #444444;margin-bottom: 10px;}\n";
-  ptr += "</style>\n";
-  ptr += "</head>\n";
-  ptr += "<body>\n";
-  ptr += "<div id=\"webpage\">\n";
-  ptr += "<h1>";
-  ptr += _configdata.Name;
-  ptr += "</h1>\n";
-
-  ptr += "<p>Temperature: ";
-  ptr += Temperaturestat;
-  ptr += " °C</p>"; 
-  ptr += "<p>Humidity: ";
-  ptr += Humiditystat;
-  ptr += " %</p>";
-
-  ptr += "</div><br><br>\n";
-  ptr += "<button onclick=\"window.location.href = '/savedconfig';\">Show saved configuration data</button>";
-  ptr += "</body>\n";
-  ptr += "</html>\n";
-  return ptr;
-}
-
-void getData() 
-{
-
-  float Temperature = dht.readTemperature(); // Gets the values of the temperature
-  float Humidity = dht.readHumidity(); // Gets the values of the humidity
-
-  Serial.println("Temperature data.. ");
-  Serial.println(Temperature);
-  Serial.println(Humidity);
-  server.send(200, "text/html", ShowDataHTML(Temperature, Humidity));
 }
 
 void setup() {
@@ -243,7 +300,7 @@ void setup() {
   wifiManager.setAPCallback(configModeCallback);
 
   //set static ip
-  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
+  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 1, 191), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
 
   wifiManager.setConfigPortalTimeout(180);
   //fetches ssid and pass and tries to connect
@@ -277,17 +334,15 @@ void setup() {
   
   //////////////////////////////////////////////////////////end of WIFI part
 
-  ReadFromFS();
-  server.on("/config",[](){server.send_P(200,"text/html", webpage);});
-  //server.on("/settings", HTTP_POST, WriteToFS);
+  //ReadFromFS();
+  //server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
+  server.on("/stopsms", HTTP_GET, StopSMS);
   server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
-
-
-
-  server.on("/settings", HTTP_POST, []() {
-    if (!server.authenticate("rakib", WiFi.psk().c_str()))
+  server.on("/settings", HTTP_POST, []() 
+  {
+    if (!server.authenticate("admin", WiFi.psk().c_str()))
       //Basic Auth Method with Custom realm and Failure Response
       //return server.requestAuthentication(BASIC_AUTH, www_realm, authFailResponse);
       //Digest Auth Method with realm="Login Required" and empty Failure Response
@@ -298,7 +353,6 @@ void setup() {
     {
       return server.requestAuthentication(DIGEST_AUTH, www_realm, authFailResponse);
     }
-    //server.send(200, "text/plain", "Login OK");
     Serial.println("Server auth ok");
 
     WriteToFS();
@@ -307,6 +361,51 @@ void setup() {
   server.begin();
   Serial.println("Server started");
 
+}
+
+void StopSMS() 
+{
+  SMSRunning = false;
+  server.send(200, "text/plain", "SMS Stopped");
+}
+
+
+String ShowDataHTML(float Temperaturestat, float Humiditystat)
+{
+  String ptr = WebPage_Header;
+  ptr += _configdata.Title;
+  ptr += WebPage_Style;
+  ptr += _configdata.Name;
+  ptr += WebPage_P1;
+  ptr += Temperaturestat;
+  ptr += WebPage_P2;
+  ptr += Humiditystat;
+  ptr += WebPage_P3;
+
+  if(SMSRunning)
+  {
+    ptr += WebPage_Btn1;
+  }
+  ptr += WebPage_Btn2;
+  ptr += WebPage_Footer;
+  if(SMSRunning)
+  {
+    ptr += WebPage_Script;
+  }
+  ptr += WebPage_End;
+  return ptr;
+}
+
+void getData() 
+{
+
+  float Temperature = dht.readTemperature(); // Gets the values of the temperature
+  float Humidity = dht.readHumidity(); // Gets the values of the humidity
+
+  Serial.println("Sensor data.. ");
+  Serial.println(Temperature);
+  Serial.println(Humidity);
+  server.send_P(200, "text/html", ShowDataHTML(Temperature, Humidity).c_str());
 }
 
 void handle_NotFound() {
@@ -339,9 +438,11 @@ String ConfigDataValues()
 {
   String ptr = "Title of Portal: " + (String)_configdata.Title + "<br>";
   ptr += "Name of Portal: " + (String)_configdata.Name + "<br>";
-  ptr += "Critical Temperature: " + (String)_configdata.CriticalTemp + "<br>"; 
-  ptr += "Higher Critical Humidity: " + (String)_configdata.HiCriticalHum + "<br>";
-  ptr += "Lower Critical Humidity: " + (String)_configdata.LowCriticalHum + "<br>";
+  ptr += "Critical Temperature: " + (String)_configdata.CriticalTemp + "&deg;C<br>"; 
+  ptr += "Higher Critical Humidity: " + (String)_configdata.HiCriticalHum + "%<br>";
+  ptr += "Lower Critical Humidity: " + (String)_configdata.LowCriticalHum + "%<br>";
+  ptr += "Sensing period of critical values: " + (String)_configdata.SensePeriod + " min<br>";
+  ptr += "SMS interval when SMS will active: " + (String)_configdata.SMSInterval + " min<br>";
   ptr += "Phone Numbers: ";
 
   for(int i=0; i< _configdata.PhnNumberCount; i++)
@@ -381,6 +482,8 @@ void ReadFromFS()
         _configdata.CriticalTemp = jObject["CriticalTemp"];
         _configdata.HiCriticalHum = jObject["HiCriticalHum"];
         _configdata.LowCriticalHum = jObject["LowCriticalHum"];
+        _configdata.SensePeriod = jObject["SensePeriod"];
+        _configdata.SMSInterval = jObject["SMSInterval"];
         _configdata.PhnNumberCount = jObject["PhnNumberCount"];
         //strcpy(_configdata.PhnNumbers, jObject["PhnNumbers"]);
 
@@ -402,6 +505,8 @@ void ReadFromFS()
         Serial.println(_configdata.CriticalTemp);
         Serial.println(_configdata.HiCriticalHum);
         Serial.println(_configdata.LowCriticalHum);
+        Serial.println(_configdata.SensePeriod);
+        Serial.println(_configdata.SMSInterval);
         
         delay(1000);
       }
@@ -409,17 +514,6 @@ void ReadFromFS()
   }
 }
 
-int timeSinceLastRead = 0;
-int interval = 12000; //12 sec
-int interval4sms = 1800000; //30 min
-unsigned long previousMillis = 0;
-unsigned long currentMillis;
-unsigned long previousMillis4sms = 0;
-float temp_store = 0;
-float hum_store = 0;
-int data_count = 0;
-int issue_count = 0;
-bool send_staus = false;
 
 
 void sendSms(String phone, float t, float h)
@@ -451,6 +545,18 @@ void sendSms(String phone, float t, float h)
   }    
   delay(100);      
 }
+
+unsigned long timeSinceLastRead = 0;
+unsigned int interval = 12000; //12 sec
+unsigned long previousMillis = 0;
+unsigned long currentMillis;
+unsigned long previousMillis4sms = 0;
+float temp_store = 0;
+float hum_store = 0;
+int data_count = 0;
+int issue_count = 0;
+bool send_staus = false;
+
 
 void loop()
 {
@@ -494,7 +600,7 @@ void loop()
         Serial.println(t);
         Serial.println(h);
         
-        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0)
+        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod)
         {
           Serial.println("config data present");
           if(t > _configdata.CriticalTemp || h > _configdata.HiCriticalHum || h < _configdata.LowCriticalHum)    
@@ -504,8 +610,9 @@ void loop()
             {
               issue_count++;
               Serial.println("issue_count: " + String(issue_count));
-              if(issue_count == 5)//5
-              {                
+              if(issue_count == _configdata.SensePeriod)//5
+              {
+                SMSRunning = true;                
                 for(int i=0; i<_configdata.PhnNumberCount; i++)
                 {
                   Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);
@@ -515,7 +622,7 @@ void loop()
                 send_staus = true;              
               }
             }
-            if(currentMillis - previousMillis4sms >= interval4sms)
+            if(currentMillis - previousMillis4sms >= _configdata.SMSInterval)
             {            
               send_staus = false;
               previousMillis4sms = currentMillis;
@@ -527,6 +634,7 @@ void loop()
           {
             send_staus = false;
             previousMillis4sms = 0;
+            SMSRunning = false;
           }
         }
       }
