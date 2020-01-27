@@ -1,0 +1,70 @@
+<!DOCTYPE html> 
+<html> 
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0  user-scalable=no"> 
+<title>Weather Report</title> 
+  <style>
+  html
+  {
+    font-family: Helvetica; display: inline-block; margin: 0px auto;
+  } 
+  body
+  {margin-top: 50px;} 
+  h1 {color: #444444;margin: 50px auto 30px;}
+  p {font-size: 24px;margin-bottom: 10px;} 
+  footer{ position: fixed; left: 0; bottom: 0; width: 100%; background-color: black; color:white; text-align: middle;} 
+  .column{float: left;
+  width: 33.33%;} 
+  a{color:white;} 
+  @media only screen and (max-width: 768px) 
+  { [class*="col"] 
+    {
+      width: 100%;
+    }
+  }
+  </style> 
+</head> 
+<body> 
+<div id=\"webpage\" align="center"> 
+  <h1>Billing Room</h1><p>Temperature: 20&deg;C </p> <p>Humidity: 60%</p> <br><br> <div><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button> </div></div>
+<br><br><br><br>
+<div align="left">
+<form action="/savedconfig" target="_blank">
+<input type="submit"  value="Show saved configuration data"/>
+</form><br><br>
+<form action="/config" target="_blank">
+<input type="submit"  value="Edit Configuration"/>
+</form>
+</div><footer>
+<div>
+  <div class="column" align="left">
+    <p>Developed by:</p>
+ <ul>
+    <li><a type="button" href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid, Manager, IT & Billing</a></li>
+    <li><a href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman, Asst. Programmer, IT & Billing</a></li>
+    <li><a href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor, Asst. Manager, ICX</a></li>
+  </ul>
+  </div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved.<br>Version: 2.0</div>
+</div>
+</footer>
+</body><script>
+function myFunction()
+  {
+    var xhr = new XMLHttpRequest();
+    var url = "/stopsms";
+    xhr.onreadystatechange = function() 
+    {
+      if (this.readyState == 4 && this.status == 200)
+      {
+        // Typical action to be performed when the document is ready:
+        if(xhr.responseText != null)
+        {
+          document.getElementById("SMSinfo").innerHTML = this.responseText;
+        }
+      }
+    };
+    xhr.open("GET", url, true);
+    xhr.send();
+  };
+</script></html>
