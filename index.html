@@ -12,10 +12,17 @@
   {margin-top: 50px;} 
   h1 {color: #444444;margin: 50px auto 30px;}
   p {font-size: 24px;margin-bottom: 10px;} 
-  footer{ position: fixed; left: 0; bottom: 0; width: 100%; background-color: black; color:white; text-align: middle;} 
-  .column{float: left;
-  width: 33.33%;} 
-  a{color:white;} 
+  footer
+  {
+	position:relative; font-size:14px; left: 0; bottom: 0; width: 100%; color:DeepSkyBlue; text-align: middle;
+  } 
+  .column
+  {
+	float: left;
+	width: 33.33%;
+  } 
+  a{color:DarkCyan;} 
+  
   @media only screen and (max-width: 768px) 
   { [class*="col"] 
     {
@@ -25,27 +32,30 @@
   </style> 
 </head> 
 <body> 
-<div id=\"webpage\" align="center"> 
-  <h1>Billing Room</h1><p>Temperature: 20&deg;C </p> <p>Humidity: 60%</p> <br><br> <div><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button> </div></div>
-<br><br><br><br>
-<div align="left">
-<form action="/savedconfig" target="_blank">
+<div id="webpage" align="center"> 
+  <h1  style="color:DeepSkyBlue">Billing Room</h1><p>Temperature: 20&deg;C </p> <p>Humidity: 60%</p><br><br> <div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div> <br><div>
+ <div>
+<form align="left" action="/savedconfig" target="_blank">
 <input type="submit"  value="Show saved configuration data"/>
-</form><br><br>
-<form action="/config" target="_blank">
+</form><br>
+<form align="left" action="/config" target="_blank">
 <input type="submit"  value="Edit Configuration"/>
 </form>
-</div><footer>
+<br><br>
+</div></div>
+</div>
+<footer>
+<hr>
 <div>
-  <div class="column" align="left">
-    <p>Developed by:</p>
- <ul>
-    <li><a type="button" href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid, Manager, IT & Billing</a></li>
-    <li><a href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman, Asst. Programmer, IT & Billing</a></li>
-    <li><a href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor, Asst. Manager, ICX</a></li>
-  </ul>
+  <div class="column" align="left" >
+    <p style="font-size:16px"> Developed by:</p>
+	 <ul>
+		<li><a type="button" href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid</a></li>
+		<li><a type="button" href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman</a></li>
+		<li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
+	  </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved.<br>Version: 2.0</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.0</div>
 </div>
 </footer>
 </body><script>

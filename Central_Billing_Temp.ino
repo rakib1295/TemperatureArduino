@@ -16,16 +16,17 @@
 Ticker ticker;
 ESP8266WebServer server(80);
 
-uint8_t DHTPin = D5;
+uint8_t DHTPin = D4;
 //uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);   
 
-String BaseLink = "http://103.230.104.200/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+String CloudLink = "http://api.thingspeak.com/update?api_key=W6QM23O1K5GEV9DH";
+String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 bool SMSRunning = false;
+bool SMSStopped = false;
 
-//String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 HTTPClient http;
 const char* www_realm = "Custom Auth Realm";
 // the Content of the HTML response in case of Unautherized Access Default:empty
@@ -44,8 +45,14 @@ struct ConfigData
   String PhnNumbers[10];
 } _configdata;
 
-const char WebPage_Header[] PROGMEM = R"rawliteral(
-<!DOCTYPE html> 
+struct IPConfigData
+{
+  IPAddress IP = IPAddress(192, 168, 0, 191);
+  IPAddress Gateway = IPAddress(192, 168, 0, 1);
+  IPAddress Subnet = IPAddress(255, 255, 255, 0);
+} _IPconfigdata;
+
+const char WebPage_Header[] PROGMEM = R"rawliteral(<!DOCTYPE html> 
 <html> 
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0  user-scalable=no"> 
@@ -61,9 +68,17 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   {margin-top: 50px;} 
   h1 {color: #444444;margin: 50px auto 30px;}
   p {font-size: 24px;margin-bottom: 10px;} 
-  footer{ position: fixed; left: 0; bottom: 0; width: 100%; background-color: black; color:white; text-align: middle;} 
-  .column{float: left; width: 33.33%;} 
-  a{color:white;} 
+  footer
+  {
+  position:relative; font-size:14px; left: 0; bottom: 0; width: 100%; color:DeepSkyBlue; text-align: middle;
+  } 
+  .column
+  {
+  float: left;
+  width: 33.33%;
+  } 
+  a{color:DarkCyan;} 
+  
   @media only screen and (max-width: 768px) 
   { [class*="col"] 
     {
@@ -73,34 +88,37 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   </style> 
 </head> 
 <body> 
-<div id=\"webpage\" align="center"> 
-  <h1>)rawliteral";
+<div id="webpage" align="center"> 
+  <h1  style="color:DeepSkyBlue">)rawliteral";
   
-const char WebPage_P1[] PROGMEM = R"rawliteral( </h1><p>Temperature: )rawliteral";
+const char WebPage_P1[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
 const char WebPage_P2[] PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
-const char WebPage_P3[] PROGMEM = R"rawliteral( %</p> <br><br> )rawliteral";
-const char WebPage_Btn1[] PROGMEM = R"rawliteral(  <div><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button> </div>)rawliteral";
-const char WebPage_Btn2[] PROGMEM = R"rawliteral(</div>
-<br><br><br><br>
-<div align="left">
-<form action="/savedconfig" target="_blank">
+const char WebPage_P3[] PROGMEM = R"rawliteral(%</p><br><br> )rawliteral";
+const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
+const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
+ <div>
+<form align="left" action="/savedconfig" target="_blank">
 <input type="submit"  value="Show saved configuration data"/>
-</form><br><br>
-<form action="/config" target="_blank">
+</form><br>
+<form align="left" action="/config" target="_blank">
 <input type="submit"  value="Edit Configuration"/>
 </form>
+<br><br>
+</div></div>
 </div>)rawliteral";
+
 const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
+<hr>
 <div>
-  <div class="column" align="left">
-    <p>Developed by:</p>
- <ul>
-    <li><a href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid</a></li>
-    <li><a href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman</a></li>
-    <li><a href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
-  </ul>
+  <div class="column" align="left" >
+    <p style="font-size:16px"> Developed by:</p>
+  <ul>
+    <li><a type="button" href="https://www.linkedin.com/in/md-rakib-subaid/" target="_blank">Md. Rakib Subaid</a></li>
+    <li><a type="button" href="https://www.linkedin.com/in/mosheyur-rahman-zebin-1a269833/" target="_blank">Mosheyur Rahman</a></li>
+    <li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
+    </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved.<br>Version: 2.0</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.0</div>
 </div>
 </footer>
 </body>)rawliteral";
@@ -125,6 +143,7 @@ function myFunction()
     xhr.send();
   };
 </script>)rawliteral";
+
 const char WebPage_End[] PROGMEM = R"rawliteral(</html>)rawliteral";
 
 const char ConfigPage[] PROGMEM = R"rawliteral(
@@ -134,7 +153,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
 <title>Config Form for Sensor Device</title>
 </head>
 <body>
-<h1 align="middle">Config SMS Settings</h1>
+<h1 align="middle">Configure SMS Settings</h1>
 <form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
     <fieldset>
       <div>
@@ -142,12 +161,12 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
         <input id="Title" type="text" placeholder="Title">
       </div><br>
       <div>
-        <label for="Name">Name of Place: </label>      
-        <input id="Name" type="text" placeholder="Name">
+        <label for="Name">Name of Place or Room: </label>      
+        <input id="Name" type="text" placeholder="Place Name">
       </div><br>
       <div>
         <label for="CriticalTemp">Critical Temperature: </label>      
-        <input id="CriticalTemp" type="number" placeholder="Critical Temperature">&deg;C</input>
+        <input id="CriticalTemp" type="number" max='100' min='0' placeholder="value">&deg;C</input>
       </div><br>
       <div>
         <label for="HiCriticalHum">Higher Critical Humidity: </label>
@@ -165,7 +184,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
       
       <div>
         <label for="SMSInterval">SMS Interval: </label>
-        <input id="SMSInterval" type="number" min='1' max = '1000' placeholder="value">Minutes (Must be: Sensing period < value)</input>
+        <input id="SMSInterval" type="number" min='1' max = '1000' placeholder="value">Minutes (Must be: value > Sensing period)</input>
       </div><br> 
       
     <div>
@@ -175,9 +194,13 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
     <br><br>
     <div id="container"/>
     </div><br> 
+    <br> 
+    <div>
+        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
+      </div><br> 
     <br>
       <div>
-        <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
+        <button class="primary" id="savebtn" type="button" onclick="saveFunction()">SAVE</button>
       </div>
     </fieldset>
   </form><br> <br> <br>
@@ -188,6 +211,15 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
     </p1>
 </body>
 <script>
+  function dValueFunction() {
+    document.getElementById("Title").defaultValue = "Weather Report";
+    document.getElementById("Name").defaultValue = "Server Room";
+    document.getElementById("CriticalTemp").defaultValue = "27";
+    document.getElementById("HiCriticalHum").defaultValue = "80";
+    document.getElementById("LowCriticalHum").defaultValue = "30";
+    document.getElementById("SensePeriod").defaultValue = "5";
+    document.getElementById("SMSInterval").defaultValue = "30";
+  }
   function addFields()
   {
     // Number of inputs to create
@@ -212,7 +244,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
       container.appendChild(document.createElement("br"));
     }
   }
-  function myFunction()
+  function saveFunction()
   {
     console.log("button clicked!");
     var Title = document.getElementById("Title").value;
@@ -247,11 +279,12 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
         if(xhr.responseText != null)
         {
           document.getElementById("SavedConfig").innerHTML = this.responseText;
-      document.getElementById("SavedConfighead").style.visibility = "visible";
+          document.getElementById("SavedConfighead").style.visibility = "visible";
         }
       }
     };
     xhr.open("POST", url, true);
+    //console.log("Stringify: " + JSON.stringify(data));
     xhr.send(JSON.stringify(data));
   };
 </script>
@@ -276,7 +309,40 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   ticker.attach(0.2, tick);
 }
 
-void setup() {
+String IPtoString(IPAddress ip)
+{
+  return String(ip[0]) + String(".") + String(ip[1]) + String(".") + String(ip[2]) + String(".") + String(ip[3]);
+}
+
+IPAddress StringtoIP(String _ip)
+{
+  uint8_t Parts[4] = {0,0,0,0};
+  int Part = 0;
+  for ( int i=0; i<_ip.length(); i++ )
+  {
+    char c = _ip[i];
+    if ( c == '.' )
+    {
+      Part++;
+      continue;
+    }
+    Parts[Part] *= 10;
+    Parts[Part] += c - '0';
+  }
+
+  return IPAddress( Parts[0], Parts[1], Parts[2], Parts[3]);
+}
+
+bool shouldSaveConfig = false;
+
+//callback notifying us of the need to save config
+void saveConfigCallback () {
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
+}
+
+void setup() 
+{
   // put your setup code here, to run once:
   Serial.begin(115200);
   pinMode(DHTPin, INPUT);
@@ -288,7 +354,6 @@ void setup() {
   // start ticker with 0.5 because we start in AP mode and try to connect
   ticker.attach(0.6, tick);
 
-  Serial.println("again called");
   //WiFiManager
   WiFiManager wifiManager;
   //Local intialization. Once its business is done, there is no need to keep it around
@@ -297,9 +362,48 @@ void setup() {
 
   //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
 
+  //wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
   //set static ip
-  wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0));
+  if(SPIFFS.exists("/ipconfig.json"))
+  {
+    Serial.println("IP file exist");
+    File configFile = SPIFFS.open("/ipconfig.json", "r");
+    Serial.println("configFile" + String(configFile));
+    if(configFile)
+    {
+      Serial.print("Reading Data from ipConfig File.....\n");
+      size_t size = configFile.size();
+      std::unique_ptr<char[]> buf(new char[size]);
+      configFile.readBytes(buf.get(), size);
+      configFile.close();
+
+      DynamicJsonBuffer jsonBuffer;
+      JsonObject& jObject = jsonBuffer.parseObject(buf.get());
+      if(jObject.success())
+      {
+        const char* ch;
+        ch = jObject["IP"];
+        _IPconfigdata.IP = StringtoIP(String(ch));   
+        
+        ch = jObject["Gateway"];
+        _IPconfigdata.Gateway = StringtoIP(String(ch));
+
+        ch = jObject["Subnet"];
+        _IPconfigdata.Subnet = StringtoIP(String(ch));
+
+        Serial.println(_IPconfigdata.IP);
+        Serial.println(_IPconfigdata.Gateway);
+        Serial.println(_IPconfigdata.Subnet);
+
+        
+        delay(1000);
+      }
+    }
+  }
+
+  wifiManager.setSTAStaticIPConfig(_IPconfigdata.IP, _IPconfigdata.Gateway, _IPconfigdata.Subnet);
 
   wifiManager.setConfigPortalTimeout(180);
   //fetches ssid and pass and tries to connect
@@ -321,14 +425,26 @@ void setup() {
   digitalWrite(BUILTIN_LED, LOW);
   Serial.println("now: "+WiFi.SSID());
 
-  //for dnd issue
-//  String _ss = WiFi.SSID();
-//  String _pw = WiFi.psk();
-//  delay(1000);
-//  WiFi.mode(WIFI_OFF);
-//  WiFi.config(IPAddress(192, 168, 0, 191), IPAddress(192, 168, 0, 1), IPAddress(255, 255, 255, 0), IPAddress(8, 8, 8, 8));
-//  WiFi.begin(_ss,_pw);
-//  Serial.println("now: new");
+  if(shouldSaveConfig)
+  {
+    shouldSaveConfig = false;
+    Serial.println("Saving IP config:");
+    _IPconfigdata.IP =  WiFi.localIP();
+    String _ip = IPtoString(_IPconfigdata.IP);
+    Serial.println(_ip);
+    _IPconfigdata.Gateway =  WiFi.gatewayIP();
+    String _gw = IPtoString(_IPconfigdata.Gateway);
+    Serial.println(_gw);
+    _IPconfigdata.Subnet =  WiFi.subnetMask();
+    String _sn = IPtoString(_IPconfigdata.Subnet);
+    Serial.println(_sn);
+
+    String data = "{\"IP\":" + _ip + ", \"Gateway\":" + _gw + ", \"Subnet\":" + _sn + "}";
+
+    WriteToFS("IP", data);
+  }
+  
+
 
   
   //////////////////////////////////////////////////////////end of WIFI part
@@ -336,7 +452,17 @@ void setup() {
   ReadFromFS();
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
-  server.on("/stopsms", HTTP_GET, StopSMS);
+  server.on("/stopsms", HTTP_GET,   []() 
+  {
+    if (!server.authenticate("admin", WiFi.psk().c_str()))
+    {
+      return server.requestAuthentication(DIGEST_AUTH, www_realm, authFailResponse);
+    }
+    Serial.println("Server auth ok");
+
+    StopSMS();
+  });
+  
   server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
   server.on("/settings", HTTP_POST, []() 
@@ -354,7 +480,7 @@ void setup() {
     }
     Serial.println("Server auth ok");
 
-    WriteToFS();
+    WriteToFS("SETTINGS", "");
   });
 
   server.begin();
@@ -364,7 +490,9 @@ void setup() {
 
 void StopSMS() 
 {
+  SMSStopped = true;
   SMSRunning = false;
+  Serial.println("SMS Stopped Manually.");
   server.send(200, "text/plain", "SMS Stopped");
 }
 
@@ -385,7 +513,7 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat)
   {
     ptr += FPSTR(WebPage_Btn1);
   }
-  ptr += FPSTR(WebPage_Btn2);
+  ptr += FPSTR(WebPage_Btn23);
   ptr += FPSTR(WebPage_Footer);
   if(SMSRunning)
   {
@@ -411,13 +539,28 @@ void handle_NotFound() {
   server.send(404, "text/plain", "Not found");
 }
 
-void WriteToFS(){
-  String data = server.arg("plain");
+void WriteToFS(String type, String data)
+{
+  if(type == "SETTINGS")
+  {
+      data = server.arg("plain");
+  }
+
   DynamicJsonBuffer jBuffer;
   JsonObject& jObject = jBuffer.parseObject(data);
 
-  Serial.println("Write Data to config.json file ... \n");
-  File configFile = SPIFFS.open("/config.json", "w");
+  Serial.println("Write Data to json file ... \n");
+
+  File configFile;
+  if(type == "SETTINGS")
+  {
+      configFile = SPIFFS.open("/config.json", "w");
+  }
+  else
+  {
+    configFile = SPIFFS.open("/ipconfig.json", "w");
+  }
+  
   if(!configFile){
     Serial.println("- failed to open file for writing");
     return;
@@ -429,8 +572,11 @@ void WriteToFS(){
   //server.send(200, "application/json", "{\"status\" : \"ok\"}");
   delay(1000);
 
-  ReadFromFS();
-  server.send(200, "text/plain", ConfigDataValues());
+  if(type == "SETTINGS")
+  {
+    ReadFromFS();
+    server.send(200, "text/plain", ConfigDataValues());
+  }
 }
 
 String ConfigDataValues()
@@ -474,10 +620,10 @@ void ReadFromFS()
       {
         const char* ch;
         ch = jObject["Title"];
-        _configdata.Title = (String)ch;
+        _configdata.Title = String(ch);
 
         ch = jObject["Name"];
-        _configdata.Name = (String)ch;
+        _configdata.Name = String(ch);
         _configdata.CriticalTemp = jObject["CriticalTemp"];
         _configdata.HiCriticalHum = jObject["HiCriticalHum"];
         _configdata.LowCriticalHum = jObject["LowCriticalHum"];
@@ -494,10 +640,10 @@ void ReadFromFS()
         for(int i=0; i<_configdata.PhnNumberCount; i++)
         {
           ch = jObject["PhnNumbers"][i]; 
-          _configdata.PhnNumbers[i] = (String)ch;
+          _configdata.PhnNumbers[i] = String(ch);
           Serial.println(_configdata.PhnNumbers[i]);
       
-        }        
+        }
         
         Serial.println(_configdata.Title);
         Serial.println(_configdata.Name);
@@ -505,8 +651,7 @@ void ReadFromFS()
         Serial.println(_configdata.HiCriticalHum);
         Serial.println(_configdata.LowCriticalHum);
         Serial.println(_configdata.SensePeriod);
-        Serial.println(_configdata.SMSInterval);
-        
+        Serial.println(_configdata.SMSInterval);        
         delay(1000);
       }
     }
@@ -525,8 +670,6 @@ void sendSms(String phone, float t, float h)
     PayLoad.replace(" ", "%20");
     Serial.println(PayLoad);
     String link = BaseLink + phone + "&sms=" + PayLoad;
-
-    //String APILink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=01917300427&sms=Hello";
     Serial.println(link);
 
     http.begin(link);
@@ -553,9 +696,8 @@ unsigned long previousMillis4sms = 0;
 float temp_store = 0;
 float hum_store = 0;
 int data_count = 0;
-int issue_count = 0;
 bool send_staus = false;
-
+int issue_count = 0; //sensing period for sms
 
 void loop()
 {
@@ -599,41 +741,55 @@ void loop()
         Serial.println(t);
         Serial.println(h);
         
-        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod)
+        String web_link = CloudLink + "&field1=" + String(t) + "&field2=" + String(h);
+        Serial.println("Web Url: " + web_link);
+        http.begin(web_link);
+        int httpCodeT = http.GET();
+        String responseBody = http.getString();
+        Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + "& response: " + responseBody);
+        http.end();
+        
+        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod > 0)
         {
           Serial.println("config data present");
           if(t > _configdata.CriticalTemp || h > _configdata.HiCriticalHum || h < _configdata.LowCriticalHum)    
           {
-            Serial.println("condition achieved");
-            if(!send_staus)
+            if(!SMSStopped)
             {
-              issue_count++;
-              Serial.println("issue_count: " + String(issue_count));
-              if(issue_count == _configdata.SensePeriod)//5
+              Serial.println("condition achieved");
+              if(!send_staus)
               {
-                SMSRunning = true;                
-                for(int i=0; i<_configdata.PhnNumberCount; i++)
+                issue_count++;
+                Serial.println("issue_count: " + String(issue_count));
+                if(issue_count == _configdata.SensePeriod)//5/////
                 {
-                  Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);
-                  sendSms(_configdata.PhnNumbers[i], t, h);                                                           
+                  SMSRunning = true;                
+                  for(int i=0; i<_configdata.PhnNumberCount; i++)
+                  {
+                    Serial.println("sending sms to: " + _configdata.PhnNumbers[i]);
+                    sendSms(_configdata.PhnNumbers[i], t, h);                                                           
+                  }
+                  issue_count = 0;
+                  send_staus = true;              
                 }
-                issue_count = 0;
-                send_staus = true;              
               }
-            }
-            if(currentMillis - previousMillis4sms >= _configdata.SMSInterval)
-            {            
-              send_staus = false;
-              previousMillis4sms = currentMillis;
-              Serial.println("send status true");
-
+              if(currentMillis - previousMillis4sms >= _configdata.SMSInterval*60000)/////
+              {            
+                send_staus = false;
+                previousMillis4sms = currentMillis;
+                Serial.println("send status true");
+  
+              }              
             }            
           }
           else
           {
+            SMSStopped = false;
+            issue_count = 0;
             send_staus = false;
             previousMillis4sms = 0;
             SMSRunning = false;
+            //Serial.println("condition not achieved");
           }
         }
       }

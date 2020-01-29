@@ -16,7 +16,7 @@
       </div><br>
       <div>
         <label for="CriticalTemp">Critical Temperature: </label>      
-        <input id="CriticalTemp" type="number" placeholder="Critical Temperature">°C</input>
+        <input id="CriticalTemp" type="number" max='100' min='0' placeholder="value">°C</input>
       </div><br>
       <div>
         <label for="HiCriticalHum">Higher Critical Humidity: </label>
@@ -25,7 +25,16 @@
     <div>
         <label for="LowCriticalHum">Lower Critical Humidity: </label>
         <input id="LowCriticalHum" type="number" max='100' min='0'  placeholder="value">% (Must be: 0 < value < Higher Critical Humidity)</input>
-      </div><br>    
+      </div><br>
+      <div>
+        <label for="SensePeriod">Sensing period of critical values before sending SMS: </label>
+        <input id="SensePeriod" type="number" min='1' max = '100'  placeholder="value">Minute(s) (Must be: 1 <= value < SMS Interval</input>
+      </div><br> 
+      
+      <div>
+        <label for="SMSInterval">SMS Interval: </label>
+        <input id="SMSInterval" type="number" min='1' max = '1000' placeholder="value">Minutes (Must be: Sensing period < value)</input>
+      </div><br> 	  
     
     <div>
         <label for="PhnNumberCount">Phone number count: </label>
@@ -34,6 +43,10 @@
     <br><br>
     <div id="container"/>
     </div><br> 
+    <br>
+	<div>
+        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
+      </div><br> 
     <br>
       <div>
         <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
@@ -47,7 +60,16 @@
 	  </p1>
 </body>
 <script>
-  function addFields()
+function dValueFunction() {
+  document.getElementById("Title").defaultValue = "Weather Report";
+  document.getElementById("Name").defaultValue = "Server Room";
+  document.getElementById("CriticalTemp").defaultValue = "27";
+  document.getElementById("HiCriticalHum").defaultValue = "80";
+  document.getElementById("LowCriticalHum").defaultValue = "30";
+  document.getElementById("SensePeriod").defaultValue = "5";
+  document.getElementById("SMSInterval").defaultValue = "30";
+}
+function addFields()
   {
     // Number of inputs to create
     var number = document.getElementById("PhnNumberCount").value;
