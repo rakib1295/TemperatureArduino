@@ -62,12 +62,13 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   <style>
   html
   {
-    font-family: Helvetica; display: inline-block; margin: 0px auto;
+    font-family: Times New Roman; display: inline-block; margin: 0px auto;
   } 
   body
-  {margin-top: 50px;} 
-  h1 {color: #444444;margin: 50px auto 30px;}
-  p {font-size: 24px;margin-bottom: 10px;} 
+  {margin-top: 20px;}
+  h1 {color: Green; margin: 50px auto 30px;}
+  h2 {color: DeepSkyBlue; margin: auto;}
+  p {font-size: 24px; margin-bottom: 10px;} 
   footer
   {
   position:relative; font-size:14px; left: 0; bottom: 0; width: 100%; color:DeepSkyBlue; text-align: middle;
@@ -89,7 +90,8 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
 </head> 
 <body> 
 <div id="webpage" align="center"> 
-  <h1  style="color:DeepSkyBlue">)rawliteral";
+  <h2>Temperature & Humidity Alert System</h2>
+  <h1>)rawliteral";
   
 const char WebPage_P1[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
 const char WebPage_P2[] PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
@@ -118,7 +120,7 @@ const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
     <li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
     </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.0</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.1</div>
 </div>
 </footer>
 </body>)rawliteral";
@@ -150,11 +152,18 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html> 
 <html>
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0  user-scalable=no"> 
 <title>Config Form for Sensor Device</title>
+<style>
+  html
+  {
+    font-family: Times New Roman; display: inline-block; margin: 0px auto;
+  }
+  </style> 
 </head>
 <body>
 <h1 align="middle">Configure SMS Settings</h1>
-<form align="left"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
+<form align="left"><i  style="color:Crimson">Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
     <fieldset>
       <div>
         <label for="Title">Title of Portal: </label>      
@@ -179,7 +188,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
       
       <div>
         <label for="SensePeriod">Sensing period of critical values before sending SMS: </label>
-        <input id="SensePeriod" type="number" min='1' max = '100'  placeholder="value">Minute(s) (Must be: 1 <= value < SMS Interval</input>
+        <input id="SensePeriod" type="number" min='1' max = '100'  placeholder="value">Minute(s) (Must be: 1 <= value < SMS Interval)</input>
       </div><br> 
       
       <div>
@@ -203,9 +212,8 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
         <button class="primary" id="savebtn" type="button" onclick="saveFunction()">SAVE</button>
       </div>
     </fieldset>
-  </form><br> <br> <br>
+  </form><br> <br>
   <div>
-    <h2 hidden id="SavedConfighead">Saved configuration data:</h2>
     <p1>
     <div id="SavedConfig"></div>
     </p1>
@@ -279,7 +287,6 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
         if(xhr.responseText != null)
         {
           document.getElementById("SavedConfig").innerHTML = this.responseText;
-          document.getElementById("SavedConfighead").style.visibility = "visible";
         }
       }
     };
@@ -452,7 +459,7 @@ void setup()
   ReadFromFS();
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
-  server.on("/stopsms", HTTP_GET,   []() 
+  server.on("/stopsms", HTTP_GET, []() 
   {
     if (!server.authenticate("admin", WiFi.psk().c_str()))
     {
@@ -581,14 +588,16 @@ void WriteToFS(String type, String data)
 
 String ConfigDataValues()
 {
-  String ptr = "Title of Portal: " + (String)_configdata.Title + "<br>";
+  String ptr = "Here the saved configuration data:<br><br>"; 
+  ptr += "Title of Portal: " + (String)_configdata.Title + "<br>";
   ptr += "Name of Place: " + (String)_configdata.Name + "<br>";
   ptr += "Critical Temperature: " + (String)_configdata.CriticalTemp + "&deg;C<br>"; 
   ptr += "Higher Critical Humidity: " + (String)_configdata.HiCriticalHum + "%<br>";
   ptr += "Lower Critical Humidity: " + (String)_configdata.LowCriticalHum + "%<br>";
   ptr += "Sensing period of critical values: " + (String)_configdata.SensePeriod + " min<br>";
-  ptr += "SMS interval when SMS will active: " + (String)_configdata.SMSInterval + " min<br>";
-  ptr += "Phone Numbers: ";
+  ptr += "SMS interval when SMS will active: " + (String)_configdata.SMSInterval + " min<br><br>";
+  ptr += "SMS will be sent, if temperature and humidity meets any critical value.<br>";
+  ptr += "Phone Numbers for SMS sending: ";
 
   for(int i=0; i< _configdata.PhnNumberCount; i++)
   {
@@ -645,13 +654,13 @@ void ReadFromFS()
       
         }
         
-        Serial.println(_configdata.Title);
-        Serial.println(_configdata.Name);
-        Serial.println(_configdata.CriticalTemp);
-        Serial.println(_configdata.HiCriticalHum);
-        Serial.println(_configdata.LowCriticalHum);
-        Serial.println(_configdata.SensePeriod);
-        Serial.println(_configdata.SMSInterval);        
+        Serial.println("Title of Portal: " + String(_configdata.Title));
+        Serial.println("Name of Place: " + String(_configdata.Name));
+        Serial.println("Critical temperature: " + String(_configdata.CriticalTemp));
+        Serial.println("Lower Critical Humidity: " + String(_configdata.HiCriticalHum));
+        Serial.println("Higher Critical Humidity: " + String(_configdata.LowCriticalHum));
+        Serial.println("Sensing Period: " + String(_configdata.SensePeriod));
+        Serial.println("SMS Interval: " + String(_configdata.SMSInterval));        
         delay(1000);
       }
     }
@@ -704,7 +713,6 @@ void loop()
   // put your main code here, to run repeatedly:
   server.handleClient();
 
-
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
     if (timeSinceLastRead >= interval) 
@@ -746,10 +754,10 @@ void loop()
         http.begin(web_link);
         int httpCodeT = http.GET();
         String responseBody = http.getString();
-        Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + "& response: " + responseBody);
+        Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + " & response: " + responseBody);
         http.end();
         
-        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp > 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod > 0)
+        if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp != 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod > 0)
         {
           Serial.println("config data present");
           if(t > _configdata.CriticalTemp || h > _configdata.HiCriticalHum || h < _configdata.LowCriticalHum)    
@@ -760,7 +768,7 @@ void loop()
               if(!send_staus)
               {
                 issue_count++;
-                Serial.println("issue_count: " + String(issue_count));
+                Serial.println("issue count: " + String(issue_count));
                 if(issue_count == _configdata.SensePeriod)//5/////
                 {
                   SMSRunning = true;                
