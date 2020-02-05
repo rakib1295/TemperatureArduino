@@ -17,8 +17,12 @@
 </head>
 <body>
 <h1 align="middle">Config SMS Settings</h1>
-<form align="left"><i style="color:Crimson">Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
+<form align="left"><div style="color:Crimson; font-size: 18px;"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i></div>
     <fieldset>
+		<div>
+        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
+      </div><br> 
+	  <div style="color:Green; font-size: 18px;"><i>Edit fields below if needed:</i></div><br><br>
       <div>
         <label for="Title">Title of Portal: </label>      
         <input id="Title" type="text" placeholder="Title">
@@ -57,10 +61,7 @@
     <div id="container"/>
     </div><br> 
     <br>
-	<div>
-        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
-      </div><br> 
-    <br>
+
       <div>
         <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
       </div>
@@ -74,8 +75,8 @@
 </body>
 <script>
 function dValueFunction() {
-  document.getElementById("Title").defaultValue = "Weather Report";
-  document.getElementById("Name").defaultValue = "Server Room";
+  document.getElementById("Title").value = "Weather Report";
+  document.getElementById("Name").value = "Server Room";
   document.getElementById("CriticalTemp").defaultValue = "27";
   document.getElementById("HiCriticalHum").defaultValue = "80";
   document.getElementById("LowCriticalHum").defaultValue = "30";

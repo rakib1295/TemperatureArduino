@@ -16,11 +16,11 @@
 Ticker ticker;
 ESP8266WebServer server(80);
 
-uint8_t DHTPin = D4;
+uint8_t DHTPin = D5; //--------------************-----------see carefully the pin number for sensor-------------*******-------------------
 //uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
-DHT dht(DHTPin, DHTTYPE);   
+DHT dht(DHTPin, DHTTYPE);
 
 String CloudLink = "http://api.thingspeak.com/update?api_key=W6QM23O1K5GEV9DH";
 String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
@@ -34,8 +34,9 @@ String authFailResponse = "Authentication Failed";
 
 struct ConfigData
 {
-  String Title = "";
-  String Name = "";
+  String PortalTitle = "";
+  String PortalName = "";
+  String PlaceName = "";
   float CriticalTemp = 0.0;
   float HiCriticalHum = 0.0;
   float LowCriticalHum = 0.0;
@@ -90,12 +91,12 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
 </head> 
 <body> 
 <div id="webpage" align="center"> 
-  <h2>Temperature & Humidity Alert System</h2>
-  <h1>)rawliteral";
+  <h2>)rawliteral";
   
-const char WebPage_P1[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
-const char WebPage_P2[] PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
-const char WebPage_P3[] PROGMEM = R"rawliteral(%</p><br><br> )rawliteral";
+const char WebPage_P1[] PROGMEM = R"rawliteral(</h2>  <h1>)rawliteral";
+const char WebPage_P2[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
+const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
+const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br><br> )rawliteral";
 const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
 const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
  <div>
@@ -163,15 +164,23 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <h1 align="middle">Configure SMS Settings</h1>
-<form align="left"><i  style="color:Crimson">Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i>
+<form align="left"><div style="color:Crimson; font-size: 18px;"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i></div>
     <fieldset>
       <div>
-        <label for="Title">Title of Portal: </label>      
-        <input id="Title" type="text" placeholder="Title">
+        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
+      </div><br> 
+      <div style="color:Green; font-size: 18px;"><i>Edit fields below if needed:</i></div><br><br>
+      <div>
+        <label for="PortalTitle">Title of Web Portal: </label>      
+        <input id="PortalTitle" type="text" placeholder="Title">
       </div><br>
       <div>
-        <label for="Name">Name of Place or Room: </label>      
-        <input id="Name" type="text" placeholder="Place Name">
+        <label for="PortalName">Name of Web Portal: </label>
+        <input id="PortalName" type="text" placeholder="Portal Name">
+      </div><br>
+      <div>
+        <label for="PlaceName">Name of Place or Room, where device established: </label>      
+        <input id="PlaceName" type="text" placeholder="Place Name">
       </div><br>
       <div>
         <label for="CriticalTemp">Critical Temperature: </label>      
@@ -202,11 +211,8 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
     <button id="AddPhnNumbers" type="button" onclick="addFields()">Create forms</button>
     <br><br>
     <div id="container"/>
-    </div><br> 
+    </div> 
     <br> 
-    <div>
-        <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
-      </div><br> 
     <br>
       <div>
         <button class="primary" id="savebtn" type="button" onclick="saveFunction()">SAVE</button>
@@ -220,13 +226,14 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
 </body>
 <script>
   function dValueFunction() {
-    document.getElementById("Title").defaultValue = "Weather Report";
-    document.getElementById("Name").defaultValue = "Server Room";
-    document.getElementById("CriticalTemp").defaultValue = "27";
-    document.getElementById("HiCriticalHum").defaultValue = "80";
-    document.getElementById("LowCriticalHum").defaultValue = "30";
-    document.getElementById("SensePeriod").defaultValue = "5";
-    document.getElementById("SMSInterval").defaultValue = "30";
+    document.getElementById("PortalTitle").value = "Weather Report";
+    document.getElementById("PortalName").value = "Temperature & Humidity Alert System";
+    document.getElementById("PlaceName").value = "BTCL Server Room";
+    document.getElementById("CriticalTemp").value = "27";
+    document.getElementById("HiCriticalHum").value = "80";
+    document.getElementById("LowCriticalHum").value = "30";
+    document.getElementById("SensePeriod").value = "5";
+    document.getElementById("SMSInterval").value = "30";
   }
   function addFields()
   {
@@ -255,8 +262,9 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
   function saveFunction()
   {
     console.log("button clicked!");
-    var Title = document.getElementById("Title").value;
-    var Name = document.getElementById("Name").value;
+    var PortalTitle = document.getElementById("PortalTitle").value;
+    var PortalName = document.getElementById("PortalName").value;
+  var PlaceName = document.getElementById("PlaceName").value;
     var CriticalTemp = document.getElementById("CriticalTemp").value;
     var HiCriticalHum = document.getElementById("HiCriticalHum").value;
     var LowCriticalHum = document.getElementById("LowCriticalHum").value;
@@ -275,7 +283,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
       }
     }      
     
-    var data = {Title:Title, Name:Name, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, SensePeriod:SensePeriod, SMSInterval:SMSInterval, PhnNumberCount:phndata.length, PhnNumbers:phndata};
+    var data = {PortalTitle:PortalTitle, PortalName:PortalName, PlaceName:PlaceName, CriticalTemp:CriticalTemp, HiCriticalHum:HiCriticalHum, LowCriticalHum:LowCriticalHum, SensePeriod:SensePeriod, SMSInterval:SMSInterval, PhnNumberCount:phndata.length, PhnNumbers:phndata};
     console.log(data);
     var xhr = new XMLHttpRequest();
     var url = "/settings";
@@ -507,14 +515,16 @@ void StopSMS()
 String ShowDataHTML(float Temperaturestat, float Humiditystat)
 {
   String ptr = FPSTR(WebPage_Header);
-  ptr += _configdata.Title;
+  ptr += _configdata.PortalTitle;
   ptr += FPSTR(WebPage_Style);
-  ptr += _configdata.Name;
+  ptr += _configdata.PortalName;
   ptr += FPSTR(WebPage_P1);
-  ptr += String(Temperaturestat);
+    ptr += _configdata.PlaceName;
   ptr += FPSTR(WebPage_P2);
-  ptr += String(Humiditystat);
+  ptr += String(Temperaturestat);
   ptr += FPSTR(WebPage_P3);
+  ptr += String(Humiditystat);
+  ptr += FPSTR(WebPage_P4);
 
   if(SMSRunning)
   {
@@ -589,8 +599,9 @@ void WriteToFS(String type, String data)
 String ConfigDataValues()
 {
   String ptr = "Here the saved configuration data:<br><br>"; 
-  ptr += "Title of Portal: " + (String)_configdata.Title + "<br>";
-  ptr += "Name of Place: " + (String)_configdata.Name + "<br>";
+  ptr += "Title of Web Portal: " + (String)_configdata.PortalTitle + "<br>";
+  ptr += "Name of Web Portal: " + (String)_configdata.PortalName + "<br>";
+  ptr += "Name of Place, where device established: " + (String)_configdata.PlaceName + "<br>";
   ptr += "Critical Temperature: " + (String)_configdata.CriticalTemp + "&deg;C<br>"; 
   ptr += "Higher Critical Humidity: " + (String)_configdata.HiCriticalHum + "%<br>";
   ptr += "Lower Critical Humidity: " + (String)_configdata.LowCriticalHum + "%<br>";
@@ -628,11 +639,14 @@ void ReadFromFS()
       if(jObject.success())
       {
         const char* ch;
-        ch = jObject["Title"];
-        _configdata.Title = String(ch);
+        ch = jObject["PortalTitle"];
+        _configdata.PortalTitle = String(ch);
 
-        ch = jObject["Name"];
-        _configdata.Name = String(ch);
+        ch = jObject["PortalName"];
+        _configdata.PortalName = String(ch);
+    
+    ch = jObject["PlaceName"];
+        _configdata.PlaceName = String(ch);
         _configdata.CriticalTemp = jObject["CriticalTemp"];
         _configdata.HiCriticalHum = jObject["HiCriticalHum"];
         _configdata.LowCriticalHum = jObject["LowCriticalHum"];
@@ -642,6 +656,17 @@ void ReadFromFS()
         //strcpy(_configdata.PhnNumbers, jObject["PhnNumbers"]);
 
         Serial.println("Config File data: ");
+    
+            
+        Serial.println("Title of Portal: " + String(_configdata.PortalTitle));
+    Serial.println("Name of Portal: " + String(_configdata.PortalName));
+        Serial.println("Name of Place: " + String(_configdata.PlaceName));
+        Serial.println("Critical temperature: " + String(_configdata.CriticalTemp));
+        Serial.println("Lower Critical Humidity: " + String(_configdata.HiCriticalHum));
+        Serial.println("Higher Critical Humidity: " + String(_configdata.LowCriticalHum));
+        Serial.println("Sensing Period: " + String(_configdata.SensePeriod));
+        Serial.println("SMS Interval: " + String(_configdata.SMSInterval));  
+    
         Serial.println("Number of phones: " + String(_configdata.PhnNumberCount));
         Serial.println("List of phones: ");
 
@@ -652,15 +677,7 @@ void ReadFromFS()
           _configdata.PhnNumbers[i] = String(ch);
           Serial.println(_configdata.PhnNumbers[i]);
       
-        }
-        
-        Serial.println("Title of Portal: " + String(_configdata.Title));
-        Serial.println("Name of Place: " + String(_configdata.Name));
-        Serial.println("Critical temperature: " + String(_configdata.CriticalTemp));
-        Serial.println("Lower Critical Humidity: " + String(_configdata.HiCriticalHum));
-        Serial.println("Higher Critical Humidity: " + String(_configdata.LowCriticalHum));
-        Serial.println("Sensing Period: " + String(_configdata.SensePeriod));
-        Serial.println("SMS Interval: " + String(_configdata.SMSInterval));        
+        }      
         delay(1000);
       }
     }
@@ -674,7 +691,7 @@ void sendSms(String phone, float t, float h)
 
   if(WiFi.status() == WL_CONNECTED) // Check the wifi connection
   {     
-    String PayLoad = "Alert!!! In " + _configdata.Name + ", Temperature is " + String(t) + " deg Celcius and humidity is " + String(h) + "%";
+    String PayLoad = "Alert!!! In " + _configdata.PlaceName + ", Temperature is " + String(t) + " deg Celcius and humidity is " + String(h) + "%";
     Serial.println(PayLoad);
     PayLoad.replace(" ", "%20");
     Serial.println(PayLoad);
