@@ -163,7 +163,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
   </style> 
 </head>
 <body>
-<h1 align="middle">Configure SMS Settings</h1>
+<h1 align="middle" style="color:Green;">Configure SMS Settings</h1>
 <form align="left"><div style="color:Crimson; font-size: 18px;"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i></div>
     <fieldset>
       <div>
