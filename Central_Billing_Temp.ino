@@ -464,7 +464,7 @@ void setup()
   
   //////////////////////////////////////////////////////////end of WIFI part
 
-  ReadFromFS();
+  ReadFromFS();//////needed to comment sometimes
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
   server.on("/stopsms", HTTP_GET, []() 
