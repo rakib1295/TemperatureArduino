@@ -1,6 +1,5 @@
 #include <FS.h>    
 #include <ESP8266WiFi.h>          //https://github.com/esp8266/Arduino
-//needed for library
 #include <DNSServer.h>
 #include <ESP8266WebServer.h>
 #include <WiFiManager.h> //https://github.com/tzapu/WiFiManager
@@ -8,6 +7,7 @@
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #include <HttpClient.h>
+#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
 #define DHTTYPE DHT22
 
 
@@ -72,19 +72,23 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   p {font-size: 24px; margin-bottom: 10px;} 
   footer
   {
-  position:relative; font-size:14px; left: 0; bottom: 0; width: 100%; color:DeepSkyBlue; text-align: middle;
+  position:fixed; font-size:14px; left: 0; bottom: 10px; width: 100%; color:DeepSkyBlue; text-align: middle;
   } 
   .column
   {
   float: left;
   width: 33.33%;
   } 
-  a{color:DarkCyan;} 
+  a{color:DarkCyan;}
   
   @media only screen and (max-width: 768px) 
   { [class*="col"] 
     {
       width: 100%;
+    }
+    footer
+    {
+      position:relative;
     }
   }
   </style> 
@@ -121,7 +125,7 @@ const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
     <li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
     </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.1</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.2</div>
 </div>
 </footer>
 </body>)rawliteral";
@@ -458,13 +462,21 @@ void setup()
 
     WriteToFS("IP", data);
   }
-  
-
-
-  
+    
   //////////////////////////////////////////////////////////end of WIFI part
 
   ReadFromFS();//////needed to comment sometimes
+
+  //-------Comment if On The Air is not needed---------
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+  // Hostname defaults to esp8266-[ChipID]
+   ArduinoOTA.setHostname("admin");
+  // No authentication by default
+   ArduinoOTA.setPassword("Admin1123");
+  ArduinoOTA.begin();
+
+  
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
   server.on("/stopsms", HTTP_GET, []() 
@@ -729,7 +741,8 @@ void loop()
 {
   // put your main code here, to run repeatedly:
   server.handleClient();
-
+  ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
+  
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
     if (timeSinceLastRead >= interval) 
