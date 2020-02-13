@@ -17,7 +17,7 @@ Ticker ticker;
 ESP8266WebServer server(80);
 
 uint8_t DHTPin = D5; //--------------************-----------see carefully the pin number for sensor-------------*******-------------------
-//uint8_t PIN_AP = 0;
+uint8_t PIN_AP = 0;
                
 // Initialize DHT sensor.
 DHT dht(DHTPin, DHTTYPE);
@@ -739,6 +739,17 @@ int issue_count = 0; //sensing period for sms
 
 void loop()
 {
+
+  if ( digitalRead(PIN_AP) == LOW ) 
+  {
+    WiFi.disconnect();
+    Serial.println("restart");
+
+    ESP.restart();
+    delay(1000);
+  }
+  
+  
   // put your main code here, to run repeatedly:
   server.handleClient();
   ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
