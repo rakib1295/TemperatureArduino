@@ -72,7 +72,7 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   p {font-size: 24px; margin-bottom: 10px;} 
   footer
   {
-  position:fixed; font-size:14px; left: 0; bottom: 10px; width: 100%; color:DeepSkyBlue; text-align: middle;
+  position:relative; font-size:14px; left: 0; bottom: 10px; width: 100%; color:DeepSkyBlue; text-align: middle;
   } 
   .column
   {
@@ -86,10 +86,10 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
     {
       width: 100%;
     }
-    footer
-    {
-      position:relative;
-    }
+//    footer
+//    {
+//      position:relative;
+//    }
   }
   </style> 
 </head> 
@@ -129,7 +129,7 @@ const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
     <li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
     </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.2</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.3</div>
 </div>
 </footer>
 </body>)rawliteral";
