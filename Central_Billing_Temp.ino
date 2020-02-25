@@ -86,10 +86,6 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
     {
       width: 100%;
     }
-//    footer
-//    {
-//      position:relative;
-//    }
   }
   </style> 
 </head> 
@@ -100,10 +96,10 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
 const char WebPage_P1[] PROGMEM = R"rawliteral(</h2>  <h1>)rawliteral";
 const char WebPage_P2[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
 const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C</p><br>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=15"></iframe>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/1?bgcolor=%23ffffff&color=%23d62020&days=1&dynamic=true&timescale=30&type=line&yaxismax=40&yaxismin=0"></iframe>
 <br><br><p>Humidity: )rawliteral";
 const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=15"></iframe>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%23d62020&days=1&dynamic=true&timescale=30&type=line&yaxismax=100&yaxismin=0"></iframe>
 <br> )rawliteral";
 const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
 const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
@@ -740,6 +736,7 @@ float hum_store = 0;
 int data_count = 0;
 bool send_staus = false;
 int issue_count = 0; //sensing period for sms
+int cloudTimeCount = 0;
 
 void loop()
 {
@@ -793,14 +790,19 @@ void loop()
         data_count = 0;
         Serial.println(t);
         Serial.println(h);
-        
-        String web_link = CloudLink + "&field1=" + String(t) + "&field2=" + String(h);
-        Serial.println("Web Url: " + web_link);
-        http.begin(web_link);
-        int httpCodeT = http.GET();
-        String responseBody = http.getString();
-        Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + " & response: " + responseBody);
-        http.end();
+
+        //cloudTimeCount++;
+//        if(cloudTimeCount == 10)
+//        {
+          String web_link = CloudLink + "&field1=" + String(t) + "&field2=" + String(h);
+          Serial.println("Web Url: " + web_link);
+          http.begin(web_link);
+          int httpCodeT = http.GET();
+          String responseBody = http.getString();
+          Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + " & response: " + responseBody);
+          http.end();
+          //cloudTimeCount = 0;
+        //}
         
         if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp != 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod > 0)
         {
