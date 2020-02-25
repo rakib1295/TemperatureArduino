@@ -99,8 +99,12 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
   
 const char WebPage_P1[] PROGMEM = R"rawliteral(</h2>  <h1>)rawliteral";
 const char WebPage_P2[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
-const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C </p> <p>Humidity: )rawliteral";
-const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br><br> )rawliteral";
+const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C</p><br>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/1?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=15"></iframe>
+<br><br><p>Humidity: )rawliteral";
+const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%23d62020&dynamic=true&results=60&type=line&update=15"></iframe>
+<br> )rawliteral";
 const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
 const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
  <div>
@@ -471,7 +475,7 @@ void setup()
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
   // Hostname defaults to esp8266-[ChipID]
-   ArduinoOTA.setHostname("admin");
+  //ArduinoOTA.setHostname("admin");
   // No authentication by default
    ArduinoOTA.setPassword("Admin1123");
   ArduinoOTA.begin();
