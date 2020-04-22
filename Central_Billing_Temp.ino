@@ -96,10 +96,10 @@ const char WebPage_Style[] PROGMEM = R"rawliteral(</title>
 const char WebPage_P1[] PROGMEM = R"rawliteral(</h2>  <h1>)rawliteral";
 const char WebPage_P2[] PROGMEM = R"rawliteral(</h1><p>Temperature: )rawliteral";
 const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C</p><br>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/1?bgcolor=%23ffffff&color=%23d62020&days=1&dynamic=true&timescale=30&type=line&yaxismax=40&yaxismin=0"></iframe>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/1?bgcolor=%23ffffff&color=%23d62020&days=30&dynamic=true&timescale=30&type=line"></iframe>
 <br><br><p>Humidity: )rawliteral";
 const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br>
-<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%23d62020&days=1&dynamic=true&timescale=30&type=line&yaxismax=100&yaxismin=0"></iframe>
+<iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%237720ff&days=30&dynamic=true&timescale=30&type=line"></iframe>
 <br> )rawliteral";
 const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
 const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
@@ -236,7 +236,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
     document.getElementById("CriticalTemp").value = "27";
     document.getElementById("HiCriticalHum").value = "80";
     document.getElementById("LowCriticalHum").value = "30";
-    document.getElementById("SensePeriod").value = "5";
+    document.getElementById("SensePeriod").value = "2";
     document.getElementById("SMSInterval").value = "30";
   }
   function addFields()
