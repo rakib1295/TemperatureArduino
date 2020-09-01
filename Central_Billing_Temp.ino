@@ -7,7 +7,7 @@
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #include <HttpClient.h>
-#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
+//#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
 #define DHTTYPE DHT22
 
 
@@ -23,7 +23,7 @@ uint8_t PIN_AP = 0;
 DHT dht(DHTPin, DHTTYPE);
 
 String CloudLink = "http://api.thingspeak.com/update?api_key=W6QM23O1K5GEV9DH";
-String BaseLink = "http://bulksms.teletalk.com.bd/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
+String BaseLink = "http://bulksms1.teletalk.com.bd:8091/link_sms_send.php?op=SMS&user=temperature&pass=Temp$201920&mobile=";
 bool SMSRunning = false;
 bool SMSStopped = false;
 
@@ -473,13 +473,13 @@ void setup()
   // Hostname defaults to esp8266-[ChipID]
   //ArduinoOTA.setHostname("admin");
   // No authentication by default
-   ArduinoOTA.setPassword("Admin1123");
-  ArduinoOTA.begin();
+   //ArduinoOTA.setPassword("Admin1123");
+  //ArduinoOTA.begin();
 
   
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
-  server.on("/stopsms", HTTP_GET, []() 
+  server.on("/stopsms", HTTP_GET, []()
   {
     if (!server.authenticate("admin", WiFi.psk().c_str()))
     {
@@ -492,7 +492,7 @@ void setup()
   
   server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
-  server.on("/settings", HTTP_POST, []() 
+  server.on("/settings", HTTP_POST, []()
   {
     if (!server.authenticate("admin", WiFi.psk().c_str()))
       //Basic Auth Method with Custom realm and Failure Response
@@ -753,7 +753,7 @@ void loop()
   
   // put your main code here, to run repeatedly:
   server.handleClient();
-  ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
+  //ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
   
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
