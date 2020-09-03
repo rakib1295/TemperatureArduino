@@ -7,7 +7,7 @@
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #include <HttpClient.h>
-//#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
+#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
 #define DHTTYPE DHT22
 
 
@@ -27,7 +27,9 @@ String BaseLink = "http://bulksms1.teletalk.com.bd:8091/link_sms_send.php?op=SMS
 bool SMSRunning = false;
 bool SMSStopped = false;
 
-HTTPClient http;
+HTTPClient http_sms;
+HTTPClient http_cloud;
+
 const char* www_realm = "Custom Auth Realm";
 // the Content of the HTML response in case of Unautherized Access Default:empty
 String authFailResponse = "Authentication Failed";
@@ -167,8 +169,8 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
   </style> 
 </head>
 <body>
-<h1 align="middle" style="color:Green;">Configure SMS Settings (Password Protected)</h1>
-<form align="left"><div style="color:Crimson; font-size: 18px;"><i>Saving will replace previous data. Saving is password protected. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i></div>
+<h1 align="middle" style="color:Green;">Configure SMS Settings</h1>
+<form align="left"><div style="color:Crimson; font-size: 18px;"><i>Saving will replace previous data. It will save in file system. It is a sophisticated file system. So, please save carefully, and don't click save button repeatedly.</i></div>
     <fieldset>
       <div>
         <button class="primary" id="defaultbtn" type="button" onclick="dValueFunction()">Show Default Values</button>
@@ -473,13 +475,13 @@ void setup()
   // Hostname defaults to esp8266-[ChipID]
   //ArduinoOTA.setHostname("admin");
   // No authentication by default
-   //ArduinoOTA.setPassword("Admin1123");
-  //ArduinoOTA.begin();
+   ArduinoOTA.setPassword("Admin1123");
+  ArduinoOTA.begin();
 
   
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
   server.on("/", getData);
-  server.on("/stopsms", HTTP_GET, []()
+  server.on("/stopsms", HTTP_GET, []() 
   {
     if (!server.authenticate("admin", WiFi.psk().c_str()))
     {
@@ -492,7 +494,7 @@ void setup()
   
   server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
   server.onNotFound(handle_NotFound);
-  server.on("/settings", HTTP_POST, []()
+  server.on("/settings", HTTP_POST, []() 
   {
     if (!server.authenticate("admin", WiFi.psk().c_str()))
       //Basic Auth Method with Custom realm and Failure Response
@@ -710,14 +712,14 @@ void sendSms(String phone, float t, float h)
     String link = BaseLink + phone + "&sms=" + PayLoad;
     Serial.println(link);
 
-    http.begin(link);
-    int httpCodeT = http.GET();
-    String responseBody = http.getString();
+    http_sms.begin(link);
+    int httpCodeT = http_sms.GET();
+    String responseBody = http_sms.getString();
 
     Serial.println(httpCodeT);
     Serial.println(responseBody);
 
-    http.end();
+    http_sms.end();
   }
   else 
   {
@@ -736,7 +738,7 @@ float hum_store = 0;
 int data_count = 0;
 bool send_staus = false;
 int issue_count = 0; //sensing period for sms
-int cloudTimeCount = 0;
+
 
 void loop()
 {
@@ -753,7 +755,7 @@ void loop()
   
   // put your main code here, to run repeatedly:
   server.handleClient();
-  //ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
+  ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
   
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
@@ -791,23 +793,21 @@ void loop()
         Serial.println(t);
         Serial.println(h);
 
-        //cloudTimeCount++;
-//        if(cloudTimeCount == 10)
-//        {
-          String web_link = CloudLink + "&field1=" + String(t) + "&field2=" + String(h);
-          Serial.println("Web Url: " + web_link);
-          http.begin(web_link);
-          int httpCodeT = http.GET();
-          String responseBody = http.getString();
-          Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + " & response: " + responseBody);
-          http.end();
-          //cloudTimeCount = 0;
-        //}
+
+        String web_link = CloudLink + "&field1=" + String(t) + "&field2=" + String(h);
+        Serial.println("Web Url: " + web_link);
+        http_cloud.begin(web_link);
+        int httpCodeT = http_cloud.GET();
+        String responseBody = http_cloud.getString();
+        Serial.println("Sending temperature data to server. And response code is: " + String(httpCodeT) + " & response: " + responseBody);
+        http_cloud.end();
+        delay(100);
+
         
         if(_configdata.PhnNumberCount > 0 && _configdata.CriticalTemp != 0 && _configdata.HiCriticalHum > 0 && _configdata.SMSInterval > 0 && _configdata.SensePeriod > 0)
         {
           Serial.println("config data present");
-          if(t > _configdata.CriticalTemp || h > _configdata.HiCriticalHum || h < _configdata.LowCriticalHum)    
+          if(t >= _configdata.CriticalTemp || h >= _configdata.HiCriticalHum || h <= _configdata.LowCriticalHum)    
           {
             if(!SMSStopped)
             {
