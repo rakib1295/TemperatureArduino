@@ -7,7 +7,7 @@
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #include <HttpClient.h>
-#include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
+// #include <ArduinoOTA.h>  //-------Comment if On The Air is not needed---------
 #define DHTTYPE DHT22
 
 
@@ -103,9 +103,12 @@ const char WebPage_P3[] PROGMEM = R"rawliteral(&deg;C</p><br>
 const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br>
 <iframe width="450" height="260" style="border: 1px solid #cccccc;" src="https://thingspeak.com/channels/854795/charts/2?bgcolor=%23ffffff&color=%237720ff&days=30&dynamic=true&timescale=30&type=line"></iframe>
 <br> )rawliteral";
-const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="myFunction()">Stop SMS Sending</button></div>)rawliteral";
-const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
- <div>
+const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="stopFunction()">Stop SMS Sending</button></div>)rawliteral";
+const char WebPage_Btn234[] PROGMEM = R"rawliteral(<br>
+<div>
+<div align="right">
+<button style="color:Crimson" onclick="resetFunction()">Restart Device</button>
+</div>
 <form align="left" action="/savedconfig" target="_blank">
 <input type="submit"  value="Show saved configuration data"/>
 </form><br>
@@ -113,7 +116,7 @@ const char WebPage_Btn23[] PROGMEM = R"rawliteral(<br><div>
 <input type="submit"  value="Edit Configuration"/>
 </form>
 <br><br>
-</div></div>
+</div>
 </div>)rawliteral";
 
 const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
@@ -127,13 +130,14 @@ const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
     <li><a type="button" href="https://www.linkedin.com/in/mnsagor/" target="_blank">Md. Moniruzzaman Sagor</a></li>
     </ul>
   </div>
-  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.3</div>
+  <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.4</div>
 </div>
 </footer>
-</body>)rawliteral";
+</body>
+<script>)rawliteral";
 
-const char WebPage_Script[] PROGMEM = R"rawliteral(<script>
-function myFunction()
+const char WebPage_stopFunction[] PROGMEM = R"rawliteral(
+function stopFunction()
   {
     var xhr = new XMLHttpRequest();
     var url = "/stopsms";
@@ -150,10 +154,27 @@ function myFunction()
     };
     xhr.open("GET", url, true);
     xhr.send();
-  };
-</script>)rawliteral";
+  })rawliteral";
 
-const char WebPage_End[] PROGMEM = R"rawliteral(</html>)rawliteral";
+const char WebPage_End[] PROGMEM = R"rawliteral(
+  function resetFunction()
+  {
+    var xhr = new XMLHttpRequest();
+    var url = "/resetdevice";
+    xhr.onreadystatechange = function() 
+    {
+      if (this.readyState == 4 && this.status == 200)
+      {
+        // Typical action to be performed when the document is ready:
+        if(xhr.responseText != null)
+        {
+          console.log(xhr.responseText);
+        }
+      }
+    };
+    xhr.open("GET", url, true);
+    xhr.send();
+  }</script></html>)rawliteral";
 
 const char ConfigPage[] PROGMEM = R"rawliteral(
 <!DOCTYPE html> 
@@ -475,8 +496,8 @@ void setup()
   // Hostname defaults to esp8266-[ChipID]
   //ArduinoOTA.setHostname("admin");
   // No authentication by default
-   ArduinoOTA.setPassword("Admin1123");
-  ArduinoOTA.begin();
+  // ArduinoOTA.setPassword("Admin1123");
+  // ArduinoOTA.begin();
 
   
   server.on("/config",[](){server.send_P(200,"text/html", ConfigPage);});
@@ -490,6 +511,16 @@ void setup()
     Serial.println("Server auth ok");
 
     StopSMS();
+  });
+  server.on("/resetdevice", HTTP_GET, []() 
+  {
+    if (!server.authenticate("admin", WiFi.psk().c_str()))
+    {
+      return server.requestAuthentication(DIGEST_AUTH, www_realm, authFailResponse);
+    }
+    Serial.println("Server auth ok");
+
+    ResetDevice();
   });
   
   server.on("/savedconfig", [](){server.send(200, "text/html", ConfigDataValues());});
@@ -544,14 +575,23 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat)
   {
     ptr += FPSTR(WebPage_Btn1);
   }
-  ptr += FPSTR(WebPage_Btn23);
+  ptr += FPSTR(WebPage_Btn234);
   ptr += FPSTR(WebPage_Footer);
   if(SMSRunning)
   {
-    ptr += FPSTR(WebPage_Script);
+    ptr += FPSTR(WebPage_stopFunction);
   }
   ptr += FPSTR(WebPage_End);
   return ptr;
+}
+
+void ResetDevice()
+{
+	WiFi.disconnect();
+    Serial.println("restart");
+
+    ESP.restart();
+    delay(1000);
 }
 
 void getData() 
@@ -755,7 +795,7 @@ void loop()
   
   // put your main code here, to run repeatedly:
   server.handleClient();
-  ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
+  // ArduinoOTA.handle();  //-------Comment if On The Air is not needed---------
   
   currentMillis = millis();
   timeSinceLastRead = currentMillis - previousMillis;
