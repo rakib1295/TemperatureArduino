@@ -106,22 +106,21 @@ const char WebPage_P4[] PROGMEM = R"rawliteral(%</p><br>
 const char WebPage_Btn1[] PROGMEM = R"rawliteral(<div align="left" style="color:Crimson"><p id="SMSinfo">SMS Running</p> <button onclick="stopFunction()">Stop SMS Sending</button></div>)rawliteral";
 const char WebPage_Btn234[] PROGMEM = R"rawliteral(<br>
 <div>
-<div align="right">
-<button style="color:Crimson" onclick="resetFunction()">Restart Device</button>
-</div>
 <form align="left" action="/savedconfig" target="_blank">
 <input type="submit"  value="Show saved configuration data"/>
 </form><br>
 <form align="left" action="/config" target="_blank">
-<input type="submit"  value="Edit Configuration"/>
+<input type="submit" value="Edit Configuration"/>
 </form>
 <br><br>
+<div align="right">
+<button style="color:Crimson" onclick="resetFunction()">Restart Device</button>
+</div><br>
 </div>
 </div>)rawliteral";
 
 const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
 <hr>
-<div>
   <div class="column" align="left" >
     <p style="font-size:16px"> Developed by:</p>
   <ul>
@@ -131,7 +130,6 @@ const char WebPage_Footer[] PROGMEM = R"rawliteral(<footer>
     </ul>
   </div>
   <div class="column" align="center"><br><br>BTCL &copy; 2019 All Rights Reserved<br>Version: 2.4</div>
-</div>
 </footer>
 </body>
 <script>)rawliteral";
@@ -257,7 +255,7 @@ const char ConfigPage[] PROGMEM = R"rawliteral(
     document.getElementById("PortalName").value = "Temperature & Humidity Alert System";
     document.getElementById("PlaceName").value = "BTCL Server Room";
     document.getElementById("CriticalTemp").value = "27";
-    document.getElementById("HiCriticalHum").value = "80";
+    document.getElementById("HiCriticalHum").value = "85";
     document.getElementById("LowCriticalHum").value = "30";
     document.getElementById("SensePeriod").value = "2";
     document.getElementById("SMSInterval").value = "30";
@@ -473,13 +471,13 @@ void setup()
     Serial.println("Saving IP config:");
     _IPconfigdata.IP =  WiFi.localIP();
     String _ip = IPtoString(_IPconfigdata.IP);
-    Serial.println(_ip);
+    Serial.println("IP: " + _ip);
     _IPconfigdata.Gateway =  WiFi.gatewayIP();
     String _gw = IPtoString(_IPconfigdata.Gateway);
-    Serial.println(_gw);
+    Serial.println("Gateway: " + _gw);
     _IPconfigdata.Subnet =  WiFi.subnetMask();
     String _sn = IPtoString(_IPconfigdata.Subnet);
-    Serial.println(_sn);
+    Serial.println("Subnet: " + _sn);
 
     String data = "{\"IP\":" + _ip + ", \"Gateway\":" + _gw + ", \"Subnet\":" + _sn + "}";
 
@@ -587,9 +585,8 @@ String ShowDataHTML(float Temperaturestat, float Humiditystat)
 
 void ResetDevice()
 {
-	WiFi.disconnect();
-    Serial.println("restart");
-
+ 
+    Serial.println("ResetDevice");
     ESP.restart();
     delay(1000);
 }
